@@ -11,6 +11,7 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from app.adapters.hardware import GpuSnapshot, HardwareProbe, RamSnapshot
 from app.adapters.llm.types import RuntimeHealth
 from app.adapters.milvus.types import MilvusHealth
 from app.schemas.diagnostics import CheckStatus, DiagnosticCheck, DiagnosticsResponse
@@ -157,51 +158,51 @@ def _milvus_check(health: MilvusHealth) -> DiagnosticCheck:
     )
 
 
-def _gpu_check() -> DiagnosticCheck:
-    nvidia_smi = shutil.which("nvidia-smi")
-    if nvidia_smi is None:
+def _ram_check(snapshot: RamSnapshot) -> DiagnosticCheck:
+    if not snapshot.ok:
+        return DiagnosticCheck(
+            id="ram",
+            label="RAM",
+            status="warning",
+            summary=snapshot.message or "RAM probe failed.",
+            hint="Diagnostics continues without RAM details.",
+            code="ram_unavailable",
+        )
+    return DiagnosticCheck(
+        id="ram",
+        label="RAM",
+        status="ok",
+        summary=snapshot.message,
+        code="ram_ok",
+    )
+
+
+def _gpu_check(snapshot: GpuSnapshot) -> DiagnosticCheck:
+    if snapshot.presence == "absent":
         return DiagnosticCheck(
             id="gpu",
             label="GPU",
             status="warning",
-            summary="nvidia-smi was not found; GPU details skipped.",
-            hint="This is expected on CPU_DEV. Real VRAM checks wait for WINDOWS_GPU.",
+            summary=snapshot.message,
+            hint="Expected on CPU-only hosts. This is not a probe failure.",
+            code="gpu_absent",
         )
-    try:
-        result = subprocess.run(
-            [
-                nvidia_smi,
-                "--query-gpu=name,memory.total,memory.used",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-    except OSError:
+    if snapshot.presence == "probe_failed":
         return DiagnosticCheck(
             id="gpu",
             label="GPU",
             status="warning",
-            summary="GPU probe failed and was ignored.",
-            hint="Application startup is not blocked by GPU detection.",
+            summary=snapshot.message,
+            hint="GPU detection failed; other diagnostics are unchanged.",
+            code="gpu_probe_failed",
         )
-    if result.returncode != 0:
-        return DiagnosticCheck(
-            id="gpu",
-            label="GPU",
-            status="warning",
-            summary="nvidia-smi returned a non-zero exit code.",
-            hint="GPU scheduling is out of scope for this page.",
-        )
-    line = (result.stdout or "").splitlines()[0].strip() if result.stdout else ""
     return DiagnosticCheck(
         id="gpu",
         label="GPU",
         status="ok",
-        summary=line or "nvidia-smi responded",
-        hint="Treat these numbers as informational until Windows GPU validation.",
+        summary=snapshot.message,
+        hint="Informational only. Not a VRAM budget or scheduler.",
+        code="gpu_ok",
     )
 
 
@@ -212,7 +213,8 @@ def build_copy_summary(checks: list[DiagnosticCheck], overall: CheckStatus) -> s
         f"pid={os.getpid()}",
     ]
     for check in checks:
-        lines.append(f"{check.id}: {check.status} — {check.summary}")
+        extra = f" [{check.code}]" if check.code else ""
+        lines.append(f"{check.id}: {check.status}{extra} — {check.summary}")
         if check.hint:
             lines.append(f"  hint: {check.hint}")
     return "\n".join(lines)
@@ -224,7 +226,9 @@ async def collect_diagnostics(
     engine: Engine,
     ollama_health: RuntimeHealth,
     milvus_health: MilvusHealth,
+    hardware: HardwareProbe | None = None,
 ) -> DiagnosticsResponse:
+    probe = hardware or HardwareProbe()
     checks = [
         _python_check(),
         _node_check(),
@@ -232,7 +236,8 @@ async def collect_diagnostics(
         _sqlite_check(settings, engine),
         _ollama_check(ollama_health),
         _milvus_check(milvus_health),
-        _gpu_check(),
+        _ram_check(probe.ram()),
+        _gpu_check(probe.gpu()),
     ]
     overall = _worst(*(check.status for check in checks))
     return DiagnosticsResponse(

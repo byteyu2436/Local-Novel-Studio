@@ -1,3 +1,4 @@
+from app.adapters.hardware import HardwareProbe
 from app.adapters.llm.types import RuntimeHealth
 from app.adapters.milvus.types import MilvusHealth
 from app.services.diagnostics import collect_diagnostics
@@ -9,7 +10,11 @@ def test_diagnostics_api_returns_checks(client) -> None:
     payload = response.json()
     assert payload["overall_status"] in {"ok", "warning", "error"}
     ids = {item["id"] for item in payload["checks"]}
-    assert {"python", "node", "data_dir", "sqlite", "ollama", "milvus", "gpu"} <= ids
+    assert {"python", "node", "data_dir", "sqlite", "ollama", "milvus", "ram", "gpu"} <= ids
+    gpu = next(item for item in payload["checks"] if item["id"] == "gpu")
+    ram = next(item for item in payload["checks"] if item["id"] == "ram")
+    assert gpu["code"] in {"gpu_ok", "gpu_absent", "gpu_probe_failed"}
+    assert ram["code"] in {"ram_ok", "ram_unavailable"}
     assert "copy_summary" in payload
     assert "THE SECRET NOVEL BODY" not in payload["copy_summary"]
 
@@ -56,3 +61,68 @@ def test_collect_diagnostics_marks_missing_providers(client) -> None:
     assert ollama.status == "error"
     assert milvus.status == "warning"
     assert result.overall_status in {"error", "warning"}
+
+
+def test_collect_diagnostics_distinguishes_gpu_absence_from_probe_failure(
+    client,
+) -> None:
+    import asyncio
+    import subprocess
+
+    settings = client.app.state.settings
+    engine = client.app.state.engine
+    absent = asyncio.run(
+        collect_diagnostics(
+            settings=settings,
+            engine=engine,
+            ollama_health=RuntimeHealth(
+                runtime="ollama",
+                reachable=False,
+                status="unavailable",
+                default_model=settings.writer_model,
+                message="Ollama is not reachable.",
+            ),
+            milvus_health=MilvusHealth(
+                reachable=False,
+                status="unavailable",
+                host=settings.milvus_host,
+                port=settings.milvus_port,
+                health_url="http://127.0.0.1:9091/healthz",
+                message="Milvus is not reachable.",
+                hint="Start scripts/milvus-up.ps1.",
+            ),
+            hardware=HardwareProbe(which=lambda _name: None),
+        )
+    )
+    gpu_absent = next(check for check in absent.checks if check.id == "gpu")
+    assert gpu_absent.code == "gpu_absent"
+
+    def run(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(cmd="nvidia-smi", timeout=5)
+
+    failed = asyncio.run(
+        collect_diagnostics(
+            settings=settings,
+            engine=engine,
+            ollama_health=RuntimeHealth(
+                runtime="ollama",
+                reachable=False,
+                status="unavailable",
+                default_model=settings.writer_model,
+                message="Ollama is not reachable.",
+            ),
+            milvus_health=MilvusHealth(
+                reachable=False,
+                status="unavailable",
+                host=settings.milvus_host,
+                port=settings.milvus_port,
+                health_url="http://127.0.0.1:9091/healthz",
+                message="Milvus is not reachable.",
+                hint="Start scripts/milvus-up.ps1.",
+            ),
+            hardware=HardwareProbe(which=lambda _name: "nvidia-smi", run=run),
+        )
+    )
+    gpu_failed = next(check for check in failed.checks if check.id == "gpu")
+    assert gpu_failed.code == "gpu_probe_failed"
+    assert gpu_absent.code != gpu_failed.code

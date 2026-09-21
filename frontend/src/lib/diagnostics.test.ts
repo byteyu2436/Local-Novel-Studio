@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  gpuPresenceFromCode,
+  gpuPresenceLabel,
   overallLabel,
   statusClassName,
   summaryLooksPrivate,
@@ -22,5 +24,12 @@ describe("diagnostics status rendering", () => {
   it("does not treat novel body as part of a diagnostics summary", () => {
     const summary = "sqlite: ok — app.db @ 0001_app_settings";
     expect(summaryLooksPrivate(summary, "THE SECRET NOVEL BODY")).toBe(true);
+  });
+
+  it("distinguishes no GPU from a probe failure", () => {
+    expect(gpuPresenceFromCode("gpu_absent")).toBe("absent");
+    expect(gpuPresenceFromCode("gpu_probe_failed")).toBe("probe_failed");
+    expect(gpuPresenceLabel("absent")).toBe("无 NVIDIA GPU");
+    expect(gpuPresenceLabel("probe_failed")).toBe("GPU 探测失败");
   });
 });

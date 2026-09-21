@@ -12,6 +12,10 @@ class DiagnosticCheck(BaseModel):
     status: CheckStatus
     summary: str
     hint: str | None = None
+    code: str | None = Field(
+        default=None,
+        description="Stable reason code, e.g. gpu_absent vs gpu_probe_failed.",
+    )
 
 
 class DiagnosticsResponse(BaseModel):
