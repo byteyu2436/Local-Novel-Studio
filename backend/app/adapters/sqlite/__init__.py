@@ -5,7 +5,7 @@ from app.adapters.sqlite.base import Base
 from app.adapters.sqlite.engine import create_sqlite_engine
 from app.adapters.sqlite.migrate import upgrade_head
 from app.adapters.sqlite.models import AppSetting
-from app.adapters.sqlite.session import create_session_factory
+from app.adapters.sqlite.session import create_session_factory, session_scope
 from app.settings import Settings, get_settings
 from app.storage.paths import ensure_data_layout
 
@@ -28,5 +28,6 @@ __all__ = [
     "bootstrap_local_runtime",
     "create_session_factory",
     "create_sqlite_engine",
+    "session_scope",
     "upgrade_head",
 ]
