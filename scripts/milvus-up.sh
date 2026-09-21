@@ -24,6 +24,9 @@ if port_open 19530 && ! echo "$RUNNING" | grep -q "lns-milvus-standalone"; then
   exit 3
 fi
 
-docker compose -f "$COMPOSE" -p "$PROJECT" up -d
+if ! docker compose -f "$COMPOSE" -p "$PROJECT" up -d; then
+  echo "docker compose up failed. If registry mirrors return EOF, retry the pull or use a working Hub mirror, then run this script again."
+  exit 1
+fi
 echo "Milvus Standalone is starting (stack: $PROJECT). Health: http://127.0.0.1:9091/healthz"
 echo "Repeatable: running this script again is safe. Stop with scripts/milvus-down.sh"

@@ -10,9 +10,9 @@
 | --- | --- |
 | Frontend | React + TypeScript + Vite + shadcn/ui |
 | Backend | Python 3.12 + FastAPI + Pydantic v2 + SQLAlchemy 2 |
-| Main DB | SQLite（后续 Issue 接入 Alembic） |
-| LLM | Ollama（后续 Issue 接入 Adapter） |
-| Vector DB | Milvus Standalone（后续 Issue 接入） |
+| Main DB | SQLite + Alembic（Canon） |
+| LLM | Ollama Adapter（Writer/Analyzer 默认 `qwen3.5:9b`） |
+| Vector DB | Milvus Standalone（可重建索引，不是 Canon） |
 
 默认绑定 `127.0.0.1`。推荐端口：Frontend `5173`，Backend `8000`。
 
@@ -21,6 +21,7 @@
 - Python 3.12+
 - Node.js LTS（pnpm 或 npm）
 - Git
+- Docker Desktop / Docker Engine（仅在需要启动 Milvus 时）
 
 真实 Ollama / GPU 模型验证只在目标 Windows GPU 机器上进行。日常开发默认 `LNS_EXECUTION_PROFILE=cpu-dev`。
 
@@ -77,7 +78,7 @@ Milvus 是可重建的向量索引，不是 Canon。启动/停止见 `docs/milvu
 ```text
 backend/     FastAPI 应用
 frontend/    React UI
-infra/       本地基础设施（Milvus Compose 等后续接入）
+infra/       本地基础设施（钉死版本的 Milvus Compose）
 scripts/     开发与质量脚本
 docs/        开发说明
 tests/       测试入口说明（实现位于 backend/tests）

@@ -33,5 +33,9 @@ if ((Test-PortOpen 19530) -and -not $ours) {
 }
 
 docker compose -f $compose -p $project up -d
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "docker compose up failed. If registry mirrors (for example USTC) return EOF, retry the pull or use a working Hub mirror, then run this script again."
+    exit 1
+}
 Write-Host "Milvus Standalone is starting (stack: $project). Health: http://127.0.0.1:9091/healthz"
 Write-Host "Repeatable: running this script again is safe. Stop with scripts/milvus-down.ps1"

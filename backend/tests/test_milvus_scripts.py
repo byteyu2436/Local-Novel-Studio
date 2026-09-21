@@ -39,3 +39,4 @@ def test_milvus_up_scripts_check_docker_and_port_conflict() -> None:
         assert "Docker is not available" in text
         assert "19530" in text
         assert "already in use" in text
+        assert "docker compose up failed" in text
