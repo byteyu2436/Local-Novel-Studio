@@ -1,18 +1,25 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import {
+  canonKindLabel,
+  loadCanonChapter,
+  loadChapterVersion,
   loadNovelChapters,
   readerPath,
   resolveActiveChapter,
   tocItemLabel,
+  type ReaderChapter,
   type ReaderToc,
 } from "@/lib/reader";
 
 export default function ReaderPage() {
   const { novelId = "", chapterId } = useParams();
+  const [params] = useSearchParams();
+  const versionId = params.get("version");
   const [toc, setToc] = useState<ReaderToc | null>(null);
+  const [chapter, setChapter] = useState<ReaderChapter | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tocOpen, setTocOpen] = useState(true);
@@ -40,9 +47,36 @@ export default function ReaderPage() {
   }, [novelId]);
 
   const active = toc ? resolveActiveChapter(toc, chapterId) : null;
+
+  useEffect(() => {
+    const id = active?.chapter_id;
+    if (!id) return;
+    const targetId = id;
+    let cancelled = false;
+    async function run() {
+      const result = versionId
+        ? await loadChapterVersion(targetId, versionId)
+        : await loadCanonChapter(targetId);
+      if (cancelled) return;
+      if ("error" in result) {
+        setError(result.error);
+        setChapter(null);
+        return;
+      }
+      setChapter(result);
+      setError(null);
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [active?.chapter_id, versionId]);
+
   if (!loading && toc && active && active.chapter_id !== chapterId) {
     return <Navigate to={readerPath(toc.novel_id, active.chapter_id)} replace />;
   }
+
+  const previewing = Boolean(chapter && !chapter.is_canon);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-10">
@@ -98,14 +132,60 @@ export default function ReaderPage() {
           ) : (
             <div />
           )}
-          <section className="min-h-[40vh] rounded-md border border-dashed px-4 py-6">
-            {active ? (
+          <section className="min-h-[40vh] rounded-md border border-input px-4 py-6">
+            {active && chapter && chapter.chapter_id === active.chapter_id ? (
               <>
-                <h2 className="text-xl font-semibold">{tocItemLabel(active)}</h2>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  已定位到本章。正文视图将在后续步骤加载 Canon 内容。
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-xl font-semibold">{tocItemLabel(chapter)}</h2>
+                  <span
+                    className={`rounded-md px-2 py-1 text-xs font-medium ${
+                      previewing
+                        ? "bg-destructive/15 text-destructive"
+                        : "bg-accent text-accent-foreground"
+                    }`}
+                  >
+                    {canonKindLabel(chapter.version_kind, chapter.is_canon)}
+                  </span>
+                </div>
+                {previewing ? (
+                  <p className="mt-2 text-sm text-destructive">
+                    当前是草稿/历史预览，不会覆盖 Canon 正文。
+                    <Link
+                      className="ml-2 underline"
+                      to={readerPath(toc.novel_id, chapter.chapter_id)}
+                    >
+                      返回 Canon
+                    </Link>
+                  </p>
+                ) : null}
+                <article className="mt-4 max-h-[70vh] overflow-y-auto whitespace-pre-wrap text-base leading-8">
+                  {chapter.body}
+                </article>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {chapter.previous ? (
+                    <Button asChild variant="outline">
+                      <Link to={readerPath(toc.novel_id, chapter.previous.chapter_id)}>
+                        上一章
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" disabled>
+                      上一章
+                    </Button>
+                  )}
+                  {chapter.next ? (
+                    <Button asChild>
+                      <Link to={readerPath(toc.novel_id, chapter.next.chapter_id)}>
+                        下一章
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button disabled>下一章</Button>
+                  )}
+                </div>
               </>
+            ) : active ? (
+              <p className="text-sm text-muted-foreground">正在加载正文…</p>
             ) : (
               <p className="text-sm text-muted-foreground">这本小说还没有章节。</p>
             )}
