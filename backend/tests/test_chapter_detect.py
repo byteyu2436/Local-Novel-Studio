@@ -6,7 +6,7 @@ from app.domain.chapter_detect import (
 )
 from app.services.chapter_detector import detect_import_chapters
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 MULTI = """第一章 开场
@@ -113,7 +113,8 @@ def test_detect_import_source_does_not_create_chapters(client: TestClient) -> No
         assert result.import_source_id == source_id
         assert result.classification.value == "multi"
         assert len(result.candidates) == 3
-        assert inspect(client.app.state.engine).has_table("chapters") is False
+        count = session.execute(text("SELECT COUNT(*) FROM chapters")).scalar_one()
+        assert count == 0
         count = session.execute(text("SELECT COUNT(*) FROM import_sources")).scalar_one()
         assert count == 1
     finally:

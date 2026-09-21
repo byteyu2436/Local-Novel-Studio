@@ -2,7 +2,7 @@ import pytest
 from app.domain.importing import sha256_hex
 from app.services import importer as importer_service
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 
 SAMPLE = "第一章 开场\r\n林深时见鹿。"
 
@@ -114,9 +114,8 @@ def test_txt_import_rejects_non_txt_and_binary_without_files(
     imports_dir = isolated_data_dir / "imports"
     leftovers = list(imports_dir.rglob("*")) if imports_dir.exists() else []
     assert not any(path.is_file() for path in leftovers)
-    tables = inspect(client.app.state.engine).get_table_names()
-    assert "chapters" not in tables
     with client.app.state.engine.connect() as connection:
+        assert connection.execute(text("SELECT COUNT(*) FROM chapters")).scalar_one() == 0
         count = connection.execute(text("SELECT COUNT(*) FROM import_sources")).scalar_one()
     assert count == 0
 

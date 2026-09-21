@@ -8,7 +8,7 @@ from app.domain.importing import (
 )
 from app.services import importer as importer_service
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect
+from sqlalchemy import text
 
 MULTI_CHAPTER = "第一章 开场\n林深见鹿。\n\n第二章 转折\n夜雨不停。\n"
 SINGLE_CHAPTER = "第一章\n只有一章的正文。"
@@ -90,9 +90,9 @@ def test_paste_import_validation_errors_have_stable_codes(
 def test_paste_import_does_not_create_chapter_tables(client: TestClient) -> None:
     response = client.post("/api/imports/paste", json={"text": SINGLE_CHAPTER})
     assert response.status_code == 201
-    tables = inspect(client.app.state.engine).get_table_names()
-    assert "chapters" not in tables
-    assert "novels" not in tables
+    with client.app.state.engine.connect() as connection:
+        assert connection.execute(text("SELECT COUNT(*) FROM chapters")).scalar_one() == 0
+        assert connection.execute(text("SELECT COUNT(*) FROM novels")).scalar_one() == 0
 
 
 def test_normalize_failure_keeps_original_snapshot(
@@ -119,4 +119,5 @@ def test_normalize_failure_keeps_original_snapshot(
     missing = client.get(f"/api/imports/{source_id}/normalized")
     assert missing.status_code == 409
     assert missing.json()["detail"]["code"] == "import_normalized_unavailable"
-    assert "chapters" not in inspect(client.app.state.engine).get_table_names()
+    with client.app.state.engine.connect() as connection:
+        assert connection.execute(text("SELECT COUNT(*) FROM chapters")).scalar_one() == 0

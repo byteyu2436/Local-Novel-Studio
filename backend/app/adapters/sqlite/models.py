@@ -4,12 +4,16 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
     event,
     inspect,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -100,6 +104,104 @@ class ImportSourceNormalizedText(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     import_source: Mapped[ImportSource] = relationship(back_populates="normalized")
+
+
+class Novel(Base):
+    __tablename__ = "novels"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    chapters: Mapped[list["Chapter"]] = relationship(
+        back_populates="novel",
+        cascade="all, delete-orphan",
+        order_by="Chapter.sequence",
+    )
+
+
+class Chapter(Base):
+    __tablename__ = "chapters"
+    __table_args__ = (
+        UniqueConstraint("novel_id", "sequence", name="uq_chapters_novel_sequence"),
+        CheckConstraint(
+            "title_source IN ('original', 'user', 'generated', 'fallback')",
+            name="ck_chapters_title_source",
+        ),
+        Index("ix_chapters_novel_id", "novel_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    novel_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("novels.id", ondelete="CASCADE"), nullable=False
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    original_label: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    original_title: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    display_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    title_source: Mapped[str] = mapped_column(String(16), nullable=False)
+    title_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    current_canon_version_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("chapter_versions.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+    )
+    import_source_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("import_sources.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    novel: Mapped[Novel] = relationship(back_populates="chapters")
+    versions: Mapped[list["ChapterVersion"]] = relationship(
+        back_populates="chapter",
+        cascade="all, delete-orphan",
+        foreign_keys="ChapterVersion.chapter_id",
+    )
+    current_canon: Mapped["ChapterVersion | None"] = relationship(
+        foreign_keys=[current_canon_version_id],
+        post_update=True,
+    )
+
+
+class ChapterVersion(Base):
+    __tablename__ = "chapter_versions"
+    __table_args__ = (
+        CheckConstraint(
+            "version_kind IN ('ORIGINAL', 'DRAFT', 'ACCEPTED')",
+            name="ck_chapter_versions_kind",
+        ),
+        Index("ix_chapter_versions_chapter_id", "chapter_id"),
+        Index(
+            "uq_chapter_versions_original",
+            "chapter_id",
+            unique=True,
+            sqlite_where=text("version_kind = 'ORIGINAL'"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("chapters.id", ondelete="CASCADE"), nullable=False
+    )
+    version_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    parent_version_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("chapter_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    superseded_by_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("chapter_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    import_source_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("import_sources.id", ondelete="SET NULL"), nullable=True
+    )
+    start_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    end_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    chapter: Mapped[Chapter] = relationship(back_populates="versions", foreign_keys=[chapter_id])
 
 
 @event.listens_for(ImportSource, "before_update")

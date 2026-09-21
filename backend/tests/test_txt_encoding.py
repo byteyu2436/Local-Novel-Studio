@@ -1,7 +1,7 @@
 import pytest
 from app.domain.importing import ImportValidationError, normalize_imported_text
 from app.domain.txt_encoding import EncodingConfidence, decode_txt_bytes
-from sqlalchemy import inspect
+from sqlalchemy import text
 
 SAMPLE = "第一章 开场\r\n林深时见鹿。"
 
@@ -67,9 +67,9 @@ def test_binary_and_corrupt_files_fail_without_chapter_tables(client) -> None:
     assert corrupt.error_code in {"txt_decode_failed", "txt_binary"}
     assert corrupt.text is None
 
-    tables = inspect(client.app.state.engine).get_table_names()
-    assert "chapters" not in tables
-    assert "novels" not in tables
+    with client.app.state.engine.connect() as connection:
+        assert connection.execute(text("SELECT COUNT(*) FROM chapters")).scalar_one() == 0
+        assert connection.execute(text("SELECT COUNT(*) FROM novels")).scalar_one() == 0
 
 
 def test_empty_txt_raises_stable_code() -> None:
