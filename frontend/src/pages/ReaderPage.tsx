@@ -13,6 +13,14 @@ import {
   type ReaderChapter,
   type ReaderToc,
 } from "@/lib/reader";
+import {
+  DEFAULT_READER_SETTINGS,
+  readerArticleStyle,
+  readReaderSettings,
+  resetReaderSettings,
+  writeReaderSettings,
+  type ReaderSettings,
+} from "@/lib/readerSettings";
 
 export default function ReaderPage() {
   const { novelId = "", chapterId } = useParams();
@@ -23,6 +31,11 @@ export default function ReaderPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tocOpen, setTocOpen] = useState(true);
+  const [settings, setSettings] = useState<ReaderSettings>(() =>
+    typeof window === "undefined"
+      ? DEFAULT_READER_SETTINGS
+      : readReaderSettings(),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +90,13 @@ export default function ReaderPage() {
   }
 
   const previewing = Boolean(chapter && !chapter.is_canon);
+  const articleStyle = readerArticleStyle(settings);
+
+  function updateSetting<K extends keyof ReaderSettings>(key: K, value: number) {
+    setSettings((current) =>
+      writeReaderSettings({ ...current, [key]: value }),
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-10">
@@ -106,6 +126,52 @@ export default function ReaderPage() {
 
       {loading ? <p className="text-sm text-muted-foreground">正在加载章节目录…</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <section className="flex flex-wrap items-end gap-4 rounded-md border border-input px-3 py-3 text-sm">
+        <label className="flex flex-col gap-1">
+          字号 {settings.fontSize}px
+          <input
+            type="range"
+            min={14}
+            max={28}
+            value={settings.fontSize}
+            onChange={(event) => updateSetting("fontSize", Number(event.target.value))}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          行高 {settings.lineHeight}
+          <input
+            type="range"
+            min={1.4}
+            max={2.4}
+            step={0.1}
+            value={settings.lineHeight}
+            onChange={(event) =>
+              updateSetting("lineHeight", Number(event.target.value))
+            }
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          正文宽度 {settings.contentWidth}rem
+          <input
+            type="range"
+            min={28}
+            max={56}
+            value={settings.contentWidth}
+            onChange={(event) =>
+              updateSetting("contentWidth", Number(event.target.value))
+            }
+          />
+        </label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setSettings(resetReaderSettings())}
+        >
+          恢复默认
+        </Button>
+      </section>
 
       {toc ? (
         <div className="grid gap-6 md:grid-cols-[minmax(12rem,16rem)_1fr]">
@@ -158,7 +224,10 @@ export default function ReaderPage() {
                     </Link>
                   </p>
                 ) : null}
-                <article className="mt-4 max-h-[70vh] overflow-y-auto whitespace-pre-wrap text-base leading-8">
+                <article
+                  className="mt-4 max-h-[70vh] overflow-y-auto whitespace-pre-wrap"
+                  style={articleStyle}
+                >
                   {chapter.body}
                 </article>
                 <div className="mt-6 flex flex-wrap gap-3">
