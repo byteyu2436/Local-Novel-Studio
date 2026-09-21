@@ -71,15 +71,13 @@ class OllamaAdapter:
     async def stream_chat(
         self, messages: list[ChatMessage], profile: ModelProfile
     ) -> AsyncIterator[ChatChunk]:
-        last_text = ""
         try:
             async for text in self._client.stream_chat(
                 [message.model_dump() for message in messages],
                 profile,
             ):
-                last_text = text
                 yield ChatChunk(text=text, done=False)
-            yield ChatChunk(text=last_text, done=True)
+            yield ChatChunk(text="", done=True)
         except asyncio.CancelledError as exc:
             raise LLMCancelledError() from exc
 

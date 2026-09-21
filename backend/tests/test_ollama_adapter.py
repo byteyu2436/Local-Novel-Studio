@@ -125,11 +125,92 @@ def test_ollama_adapter_mock_chat_stream_and_health() -> None:
         assert await adapter.chat(messages, profile) == "hello"
         assert await adapter.generate("hi", profile) == "generated"
         streamed: list[str] = []
+        done_flags: list[bool] = []
         async for chunk in adapter.stream_chat(messages, profile):
-            if not chunk.done:
-                streamed.append(chunk.text)
-        assert streamed == ["hel", "lo"]
+            streamed.append(chunk.text)
+            done_flags.append(chunk.done)
+        assert "".join(streamed) == "hello"
+        assert done_flags[-1] is True
+        assert done_flags.count(True) == 1
+        assert streamed[-1] == ""
         await adapter.aclose()
+
+    asyncio.run(_run())
+
+
+def _stream_only_transport(lines: str) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/chat" and _json_body(request).get("stream"):
+            return httpx.Response(200, text=lines)
+        return httpx.Response(404, json={"error": "not found"})
+
+    return httpx.MockTransport(handler)
+
+
+async def _join_stream(adapter: OllamaAdapter) -> tuple[str, list[bool]]:
+    profile = default_model_profiles(get_settings())[ModelRole.WRITER]
+    messages = [ChatMessage(role="user", content="hi")]
+    texts: list[str] = []
+    done_flags: list[bool] = []
+    async for chunk in adapter.stream_chat(messages, profile):
+        texts.append(chunk.text)
+        done_flags.append(chunk.done)
+    await adapter.aclose()
+    return "".join(texts), done_flags
+
+
+def test_stream_concatenates_all_chunks_without_duplicating_the_tail() -> None:
+    settings = get_settings()
+
+    async def _run_with(lines: str, expected: str) -> None:
+        http_client = httpx.AsyncClient(
+            transport=_stream_only_transport(lines),
+            base_url=settings.ollama_base_url,
+            timeout=5,
+        )
+        adapter = OllamaAdapter(
+            settings,
+            client=OllamaClient(settings.ollama_base_url, timeout=5, client=http_client),
+        )
+        joined, done_flags = await _join_stream(adapter)
+        assert joined == expected
+        assert done_flags[-1] is True
+        assert done_flags.count(True) == 1
+        assert done_flags[:-1] == [False] * (len(done_flags) - 1)
+
+    async def _run() -> None:
+        await _run_with(
+            '{"message":{"content":"hel"},"done":false}\n{"message":{"content":"lo"},"done":true}\n',
+            "hello",
+        )
+        await _run_with('{"message":{"content":"OK"},"done":true}\n', "OK")
+        await _run_with('{"message":{"content":""},"done":true}\n', "")
+
+    asyncio.run(_run())
+
+
+def test_fake_stream_matches_ollama_done_marker_contract() -> None:
+    profile = default_model_profiles(get_settings())[ModelRole.WRITER]
+    messages = [ChatMessage(role="user", content="hello")]
+
+    async def _join(fake: FakeLLMProvider) -> tuple[str, list[bool]]:
+        texts: list[str] = []
+        done_flags: list[bool] = []
+        async for chunk in fake.stream_chat(messages, profile):
+            texts.append(chunk.text)
+            done_flags.append(chunk.done)
+        return "".join(texts), done_flags
+
+    async def _run() -> None:
+        joined, done_flags = await _join(FakeLLMProvider(chunks=["hel", "lo"]))
+        assert joined == "hello"
+        assert done_flags == [False, False, True]
+        single, single_done = await _join(FakeLLMProvider(chunks=["OK"]))
+        assert single == "OK"
+        assert single_done == [False, True]
+        empty, empty_done = await _join(FakeLLMProvider(chunks=[]))
+        assert empty == ""
+        assert empty_done == [True]
 
     asyncio.run(_run())
 

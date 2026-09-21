@@ -36,7 +36,7 @@ class FakeLLMProvider:
         self.mode = mode
         self.models = models or ["qwen3.5:9b"]
         self.response = response
-        self.chunks = chunks or ["ok"]
+        self.chunks = ["ok"] if chunks is None else chunks
         self.calls: list[str] = []
 
     async def health(self) -> RuntimeHealth:
@@ -75,8 +75,9 @@ class FakeLLMProvider:
         if self.mode == "stream_interrupt":
             yield ChatChunk(text=self.chunks[0], done=False)
             raise LLMInvalidOutputError("Streaming output was interrupted.")
-        for index, chunk in enumerate(self.chunks):
-            yield ChatChunk(text=chunk, done=index == len(self.chunks) - 1)
+        for chunk in self.chunks:
+            yield ChatChunk(text=chunk, done=False)
+        yield ChatChunk(text="", done=True)
 
     def _raise_if_needed(self, profile: ModelProfile | None = None) -> None:
         if self.mode == "unavailable":
