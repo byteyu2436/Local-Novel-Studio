@@ -237,6 +237,8 @@ class ChapterAnalysis(Base):
     source_version_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
     analyzer_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    profile_version: Mapped[str] = mapped_column(String(64), nullable=False)
     model_profile_id: Mapped[str] = mapped_column(String(128), nullable=False)
     model_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)

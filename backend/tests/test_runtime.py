@@ -31,7 +31,7 @@ def test_alembic_upgrade_is_idempotent(isolated_data_dir: Path) -> None:
 
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0005_chapter_analysis"
+    assert version == "0006_analysis_prompt_trace"
     engine.dispose()
 
 

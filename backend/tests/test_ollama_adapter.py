@@ -27,6 +27,8 @@ def test_writer_and_analyzer_share_model_ref() -> None:
     analyzer = profiles[ModelRole.ANALYZER]
     assert writer.model_ref == analyzer.model_ref == get_settings().writer_model
     assert writer.temperature != analyzer.temperature
+    assert 0.0 <= analyzer.temperature <= 0.2
+    assert analyzer.thinking_policy.value == "off"
 
 
 def test_error_normalization() -> None:

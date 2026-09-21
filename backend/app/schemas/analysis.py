@@ -119,6 +119,8 @@ class AnalysisResultDTO(BaseModel):
     source_version_kind: Literal["ORIGINAL", "ACCEPTED"]
     schema_version: str
     analyzer_version: str
+    prompt_version: str
+    profile_version: str
     model_profile_id: str
     model_ref: str | None
     payload: ChapterAnalysisPayload

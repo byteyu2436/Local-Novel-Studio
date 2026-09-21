@@ -182,6 +182,6 @@ def test_upgrade_from_v0_1_baseline_preserves_settings(isolated_data_dir: Path) 
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
         assert theme == "dark"
-        assert version == "0005_chapter_analysis"
+        assert version == "0006_analysis_prompt_trace"
     finally:
         engine.dispose()

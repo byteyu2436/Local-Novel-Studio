@@ -11,8 +11,10 @@ from app.domain.analysis import (
     AnalysisError,
     require_canon_analysis_source,
 )
+from app.domain.analysis_profile import ANALYZER_PROFILE_VERSION
 from app.domain.chapter import TitleSource, VersionKind
 from app.domain.chapter_canon import add_draft_version
+from app.prompts.chapter_analyzer import CHAPTER_ANALYZER_PROMPT_VERSION
 from app.schemas.analysis import parse_chapter_analysis_payload
 from app.services import catalog
 from app.services.analysis import (
@@ -28,6 +30,17 @@ from sqlalchemy.exc import IntegrityError
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _trace(**overrides: str) -> dict[str, str]:
+    values = {
+        "analyzer_version": "analyzer.test",
+        "model_profile_id": "analyzer-default",
+        "prompt_version": CHAPTER_ANALYZER_PROMPT_VERSION,
+        "profile_version": ANALYZER_PROFILE_VERSION,
+    }
+    values.update(overrides)
+    return values
 
 
 def _valid_payload() -> dict:
@@ -137,7 +150,7 @@ def test_migration_creates_chapter_analysis_table(isolated_data_dir) -> None:
             version = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0005_chapter_analysis"
+        assert version == "0006_analysis_prompt_trace"
     finally:
         engine.dispose()
 
@@ -154,7 +167,7 @@ def test_upgrade_from_chapter_schema_revision(isolated_data_dir) -> None:
             version = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0005_chapter_analysis"
+        assert version == "0006_analysis_prompt_trace"
         assert "chapter_analysis" in inspect(engine).get_table_names()
     finally:
         engine.dispose()
@@ -175,13 +188,14 @@ def test_persists_validated_result_with_versions(isolated_data_dir) -> None:
                 chapter,
                 canon,
                 payload=_valid_payload(),
-                analyzer_version="analyzer.test",
-                model_profile_id="analyzer-default",
                 model_ref="qwen3.5:9b",
+                **_trace(),
             )
             dto = analysis_result_dto(row)
             assert dto.schema_version == CHAPTER_ANALYSIS_SCHEMA_VERSION
             assert dto.analyzer_version == "analyzer.test"
+            assert dto.prompt_version == CHAPTER_ANALYZER_PROMPT_VERSION
+            assert dto.profile_version == ANALYZER_PROFILE_VERSION
             assert dto.model_profile_id == "analyzer-default"
             assert dto.model_ref == "qwen3.5:9b"
             assert dto.source_version_kind == VersionKind.ORIGINAL.value
@@ -209,8 +223,7 @@ def test_invalid_payload_does_not_persist(isolated_data_dir) -> None:
                     chapter,
                     canon,
                     payload=broken,
-                    analyzer_version="analyzer.test",
-                    model_profile_id="analyzer-default",
+                    **_trace(),
                 )
             assert caught.value.code == "analysis_schema_invalid"
             assert session.scalar(text("SELECT COUNT(*) FROM chapter_analysis")) == 0
@@ -233,8 +246,7 @@ def test_unsupported_schema_version_is_rejected(isolated_data_dir) -> None:
                     canon,
                     payload=_valid_payload(),
                     schema_version="chapter-analysis.v2",
-                    analyzer_version="analyzer.test",
-                    model_profile_id="analyzer-default",
+                    **_trace(),
                 )
             assert caught.value.code == "unsupported_schema_version"
     finally:
@@ -260,8 +272,7 @@ def test_draft_cannot_be_official_analysis_source(isolated_data_dir) -> None:
                     chapter,
                     draft,
                     payload=_valid_payload(),
-                    analyzer_version="analyzer.test",
-                    model_profile_id="analyzer-default",
+                    **_trace(),
                 )
             assert caught.value.code == "draft_cannot_be_analysis_source"
             require_canon_analysis_source(chapter, canon)
@@ -292,8 +303,7 @@ def test_superseded_original_cannot_be_official_source(isolated_data_dir) -> Non
                     chapter,
                     original,
                     payload=_valid_payload(),
-                    analyzer_version="analyzer.test",
-                    model_profile_id="analyzer-default",
+                    **_trace(),
                 )
             assert caught.value.code == "analysis_requires_current_canon"
             row = persist_chapter_analysis(
@@ -301,8 +311,7 @@ def test_superseded_original_cannot_be_official_source(isolated_data_dir) -> Non
                 chapter,
                 accepted,
                 payload=_valid_payload(),
-                analyzer_version="analyzer.test",
-                model_profile_id="analyzer-default",
+                **_trace(),
             )
             assert row.source_version_kind == VersionKind.ACCEPTED.value
     finally:
@@ -347,6 +356,8 @@ def test_check_constraint_rejects_draft_kind_row(isolated_data_dir) -> None:
                     source_version_kind=VersionKind.DRAFT.value,
                     schema_version=CHAPTER_ANALYSIS_SCHEMA_VERSION,
                     analyzer_version="x",
+                    prompt_version=CHAPTER_ANALYZER_PROMPT_VERSION,
+                    profile_version=ANALYZER_PROFILE_VERSION,
                     model_profile_id="analyzer-default",
                     payload=_valid_payload(),
                     created_at=now,

@@ -8,7 +8,10 @@ def parse_model_ref(model_ref: str) -> tuple[str, str]:
 
 
 def default_model_profiles(settings: Settings) -> dict[ModelRole, ModelProfile]:
-    """Writer and Analyzer share one Ollama model and differ only by sampling policy."""
+    """Writer and Analyzer share one Ollama model and differ only by sampling.
+
+    Analyzer stays in 0–0.2 temperature with thinking off for stable structured output.
+    """
 
     name, tag = parse_model_ref(settings.writer_model)
     writer = ModelProfile(
