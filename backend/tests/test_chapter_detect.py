@@ -109,9 +109,10 @@ def test_detect_import_source_does_not_create_chapters(client: TestClient) -> No
     source_id = created.json()["id"]
     session: Session = client.app.state.session_factory()
     try:
-        source, detection = detect_import_chapters(session, source_id)
-        assert source.id == source_id
-        assert detection.shape is ChapterShape.MULTI
+        result = detect_import_chapters(session, source_id)
+        assert result.import_source_id == source_id
+        assert result.classification.value == "multi"
+        assert len(result.candidates) == 3
         assert inspect(client.app.state.engine).has_table("chapters") is False
         count = session.execute(text("SELECT COUNT(*) FROM import_sources")).scalar_one()
         assert count == 1

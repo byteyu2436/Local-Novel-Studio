@@ -45,3 +45,31 @@ class TxtPreviewDTO(BaseModel):
     preview_text: str
     preview_truncated: bool
     char_count: int
+
+
+class ChapterCandidateDTO(BaseModel):
+    candidate_id: str
+    sequence: int
+    original_label: str
+    title_candidate: str
+    start_offset: int
+    end_offset: int
+    confidence: float
+    classification: Literal["single", "multi", "unstructured"]
+    preview_text: str
+
+
+class DetectionResultDTO(BaseModel):
+    import_source_id: str
+    checksum: str
+    classification: Literal["single", "multi", "unstructured"]
+    candidates: list[ChapterCandidateDTO]
+    warnings: list[str]
+    normalized_char_count: int
+
+
+class ImportSpanDTO(BaseModel):
+    import_source_id: str
+    start_offset: int
+    end_offset: int
+    text: str

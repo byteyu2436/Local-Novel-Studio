@@ -1,19 +1,34 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.adapters.sqlite.models import ImportSource
 from app.api.deps import get_session
+from app.domain.chapter_candidate import candidate_preview
 from app.domain.importing import ImportValidationError, ParseStatus, SourceType, sha256_hex
 from app.schemas.imports import (
+    ChapterCandidateDTO,
+    DetectionResultDTO,
     ImportErrorDTO,
     ImportSourceDTO,
+    ImportSpanDTO,
     ImportTextDTO,
     PasteImportRequest,
     TxtPreviewDTO,
 )
+from app.services.chapter_detector import detect_import_chapters, preview_candidate_text
 from app.services.importer import (
     import_pasted_text,
     import_txt_file,
@@ -263,4 +278,82 @@ def get_import_normalized(
         import_source_id=source.id,
         kind="normalized",
         text=source.normalized.text,
+    )
+
+
+def _detection_dto(session: Session, source_id: str) -> DetectionResultDTO:
+    result = detect_import_chapters(session, source_id)
+    source = require_import_source(session, source_id)
+    text = source.normalized.text if source.normalized is not None else ""
+    return DetectionResultDTO(
+        import_source_id=result.import_source_id,
+        checksum=result.checksum,
+        classification=result.classification.value,
+        warnings=list(result.warnings),
+        normalized_char_count=result.normalized_char_count,
+        candidates=[
+            ChapterCandidateDTO(
+                candidate_id=item.candidate_id,
+                sequence=item.sequence,
+                original_label=item.original_label,
+                title_candidate=item.title_candidate,
+                start_offset=item.start_offset,
+                end_offset=item.end_offset,
+                confidence=item.confidence,
+                classification=item.classification.value,
+                preview_text=candidate_preview(text, item.start_offset, item.end_offset),
+            )
+            for item in result.candidates
+        ],
+    )
+
+
+@router.get(
+    "/{source_id}/detection",
+    response_model=DetectionResultDTO,
+    responses={400: {"model": ImportErrorDTO}, 404: {"model": ImportErrorDTO}},
+)
+def get_import_detection(
+    source_id: str, session: Annotated[Session, Depends(get_session)]
+) -> DetectionResultDTO:
+    try:
+        return _detection_dto(session, source_id)
+    except ImportValidationError as exc:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "import_not_found"
+            else status.HTTP_409_CONFLICT
+            if exc.code == "import_normalized_unavailable"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise _http_error(exc, status_code=code, source_id=source_id) from exc
+
+
+@router.get(
+    "/{source_id}/span",
+    response_model=ImportSpanDTO,
+    responses={400: {"model": ImportErrorDTO}, 404: {"model": ImportErrorDTO}},
+)
+def get_import_span(
+    source_id: str,
+    session: Annotated[Session, Depends(get_session)],
+    start: Annotated[int, Query(ge=0)],
+    end: Annotated[int, Query(ge=0)],
+) -> ImportSpanDTO:
+    try:
+        text = preview_candidate_text(session, source_id, start, end)
+    except ImportValidationError as exc:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "import_not_found"
+            else status.HTTP_409_CONFLICT
+            if exc.code == "import_normalized_unavailable"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise _http_error(exc, status_code=code, source_id=source_id) from exc
+    return ImportSpanDTO(
+        import_source_id=source_id,
+        start_offset=start,
+        end_offset=end,
+        text=text,
     )
