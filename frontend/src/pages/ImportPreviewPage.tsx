@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   classificationLabel,
   confirmBlockedReason,
+  confirmImport,
   isLowConfidence,
   loadDetection,
   mergeWithNext,
@@ -17,6 +18,7 @@ import {
   type PreviewDestination,
   type PreviewDraft,
 } from "@/lib/importPreview";
+import { readingChapterPath } from "@/lib/reader";
 
 export default function ImportPreviewPage() {
   const { sourceId = "" } = useParams();
@@ -24,6 +26,7 @@ export default function ImportPreviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [splitAt, setSplitAt] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,14 +72,27 @@ export default function ImportPreviewPage() {
     update({ ...draft, candidates: outcome, confirmed: false });
   }
 
-  function onConfirm() {
+  async function onConfirm() {
     if (!draft) return;
     const blocked = confirmBlockedReason(draft);
     if (blocked) {
       setError(blocked);
       return;
     }
-    const confirmed = { ...draft, confirmed: true };
+    setConfirming(true);
+    const result = await confirmImport(draft);
+    setConfirming(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    const confirmed = {
+      ...draft,
+      confirmed: true,
+      confirmedNovelId: result.novel_id,
+      confirmedChapterId: result.chapter_id,
+      novel_id: result.novel_id,
+    };
     setDraft(confirmed);
     writePreviewDraft(confirmed);
   }
@@ -271,19 +287,28 @@ export default function ImportPreviewPage() {
             ))}
           </ol>
 
-          {draft.confirmed ? (
+          {draft.confirmed && draft.confirmedNovelId && draft.confirmedChapterId ? (
             <p className="text-sm font-medium">
-              章节结构已确认，尚未创建正式 Chapter。
+              正式章节已创建。
+              <Link
+                className="ml-2 underline"
+                to={readingChapterPath(
+                  draft.confirmedNovelId,
+                  draft.confirmedChapterId,
+                )}
+              >
+                打开 Reader
+              </Link>
             </p>
           ) : null}
 
           <div className="flex flex-wrap gap-3">
             <Button
               type="button"
-              onClick={onConfirm}
-              disabled={Boolean(blocked)}
+              onClick={() => void onConfirm()}
+              disabled={Boolean(blocked) || confirming || draft.confirmed}
             >
-              确认章节结构
+              {confirming ? "正在创建章节…" : "确认并创建章节"}
             </Button>
             <Button asChild variant="outline">
               <Link to="/import">返回粘贴导入</Link>

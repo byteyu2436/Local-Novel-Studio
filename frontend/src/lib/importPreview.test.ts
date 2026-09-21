@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   classificationLabel,
   confirmBlockedReason,
+  confirmImport,
   mergeWithNext,
   moveCandidate,
   parseDetectionPayload,
@@ -111,5 +112,35 @@ describe("import preview edits", () => {
       expect(draft.confirmed).toBe(false);
       expect(draft.destination).toBe("new_novel");
     }
+  });
+
+  it("posts confirm and returns a Reader chapter path payload", async () => {
+    const draft = toDraft({
+      import_source_id: "src-1",
+      checksum: "abc",
+      classification: "multi",
+      warnings: [],
+      normalized_char_count: 20,
+      candidates: [sample(), sample({ candidate_id: "c2", sequence: 2 })],
+    });
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        novel_id: "n1",
+        idempotent: false,
+        chapters: [{ chapter_id: "ch-1" }, { chapter_id: "ch-2" }],
+      }),
+    });
+    const result = await confirmImport(draft, fetcher);
+    expect(result).toEqual({
+      ok: true,
+      novel_id: "n1",
+      chapter_id: "ch-1",
+      idempotent: false,
+    });
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/imports/src-1/confirm",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 });

@@ -8,6 +8,7 @@ import {
   navDisabled,
   parseTocPayload,
   readerPath,
+  readingChapterPath,
   resolveActiveChapter,
   tocItemLabel,
 } from "./reader";
@@ -30,6 +31,7 @@ describe("reader shell", () => {
   it("keeps novel/chapter location in the URL for refresh", () => {
     expect(readerPath("n1")).toBe("/novels/n1");
     expect(readerPath("n1", "c3", "v9")).toBe("/novels/n1/chapters/c3?version=v9");
+    expect(readingChapterPath("n1", "c3")).toBe("/novels/n1/chapters/c3");
     const parsed = parseTocPayload(SAMPLE);
     if ("error" in parsed) throw new Error(parsed.error);
     expect(resolveActiveChapter(parsed, "c12")?.chapter_id).toBe("c12");

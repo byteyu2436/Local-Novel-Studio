@@ -33,6 +33,8 @@ export type PreviewDraft = {
   novel_id: string;
   unstructured_ack: boolean;
   confirmed: boolean;
+  confirmedNovelId?: string;
+  confirmedChapterId?: string;
 };
 
 export const PREVIEW_STORAGE_PREFIX = "lns.import-preview:";
@@ -243,4 +245,52 @@ export function writePreviewDraft(
     previewStorageKey(draft.import_source_id),
     JSON.stringify(draft),
   );
+}
+
+export type ConfirmImportResult =
+  | { ok: true; novel_id: string; chapter_id: string; idempotent: boolean }
+  | { ok: false; message: string };
+
+export async function confirmImport(
+  draft: PreviewDraft,
+  fetcher: typeof fetch = fetch,
+): Promise<ConfirmImportResult> {
+  const blocked = confirmBlockedReason(draft);
+  if (blocked) return { ok: false, message: blocked };
+  const response = await fetcher(
+    `/api/imports/${draft.import_source_id}/confirm`,
+    {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      checksum: draft.checksum,
+      destination: draft.destination,
+      novel_id: draft.destination === "append" ? draft.novel_id : null,
+      unstructured_ack: draft.unstructured_ack,
+      classification: draft.classification,
+      candidates: draft.candidates,
+    }),
+  });
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    return { ok: false, message: "确认失败，请检查章节范围后重试。" };
+  }
+  if (!payload || typeof payload !== "object") {
+    return { ok: false, message: "确认失败，请检查章节范围后重试。" };
+  }
+  const body = payload as {
+    novel_id?: string;
+    idempotent?: boolean;
+    chapters?: Array<{ chapter_id?: string }>;
+  };
+  const chapterId = body.chapters?.[0]?.chapter_id;
+  if (typeof body.novel_id !== "string" || typeof chapterId !== "string") {
+    return { ok: false, message: "确认失败，请检查章节范围后重试。" };
+  }
+  return {
+    ok: true,
+    novel_id: body.novel_id,
+    chapter_id: chapterId,
+    idempotent: body.idempotent === true,
+  };
 }

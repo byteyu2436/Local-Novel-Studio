@@ -25,6 +25,10 @@ export function readerPath(
   return base;
 }
 
+export function readingChapterPath(novelId: string, chapterId: string): string {
+  return readerPath(novelId, chapterId);
+}
+
 export function tocItemLabel(
   item: Pick<ReaderTocItem, "sequence" | "display_title">,
 ): string {
