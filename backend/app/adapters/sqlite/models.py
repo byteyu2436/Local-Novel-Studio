@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -202,6 +203,50 @@ class ChapterVersion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     chapter: Mapped[Chapter] = relationship(back_populates="versions", foreign_keys=[chapter_id])
+    analyses: Mapped[list["ChapterAnalysis"]] = relationship(
+        back_populates="source_version",
+        cascade="all, delete-orphan",
+        foreign_keys="ChapterAnalysis.source_version_id",
+    )
+
+
+class ChapterAnalysis(Base):
+    """Official per-chapter structured analysis bound to a Canon ChapterVersion."""
+
+    __tablename__ = "chapter_analysis"
+    __table_args__ = (
+        UniqueConstraint(
+            "chapter_id",
+            "source_version_id",
+            name="uq_chapter_analysis_chapter_source",
+        ),
+        CheckConstraint(
+            "source_version_kind IN ('ORIGINAL', 'ACCEPTED')",
+            name="ck_chapter_analysis_source_kind",
+        ),
+        Index("ix_chapter_analysis_chapter_id", "chapter_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("chapters.id", ondelete="CASCADE"), nullable=False
+    )
+    source_version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("chapter_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    source_version_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    analyzer_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_profile_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    chapter: Mapped[Chapter] = relationship(foreign_keys=[chapter_id])
+    source_version: Mapped[ChapterVersion] = relationship(
+        back_populates="analyses",
+        foreign_keys=[source_version_id],
+    )
 
 
 @event.listens_for(ImportSource, "before_update")

@@ -1,13 +1,18 @@
 from alembic import context
 from app.adapters.sqlite.base import Base
-from app.adapters.sqlite.models import AppSetting, ImportSource, ImportSourceNormalizedText
+from app.adapters.sqlite.models import (
+    AppSetting,
+    ChapterAnalysis,
+    ImportSource,
+    ImportSourceNormalizedText,
+)
 from sqlalchemy import engine_from_config, pool
 
 config = context.config
 target_metadata = Base.metadata
 
 # Imported so Alembic autogenerate can see the current models.
-_ = (AppSetting, ImportSource, ImportSourceNormalizedText)
+_ = (AppSetting, ChapterAnalysis, ImportSource, ImportSourceNormalizedText)
 
 
 def run_migrations_offline() -> None:

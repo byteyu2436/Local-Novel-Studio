@@ -19,6 +19,7 @@ def test_bootstrap_creates_directories_and_sqlite(isolated_data_dir: Path) -> No
 
     inspector = inspect(engine)
     assert "app_settings" in inspector.get_table_names()
+    assert "chapter_analysis" in inspector.get_table_names()
     assert "memory_facts" not in inspector.get_table_names()
     engine.dispose()
 
@@ -30,7 +31,7 @@ def test_alembic_upgrade_is_idempotent(isolated_data_dir: Path) -> None:
 
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0004_novels_chapters"
+    assert version == "0005_chapter_analysis"
     engine.dispose()
 
 
