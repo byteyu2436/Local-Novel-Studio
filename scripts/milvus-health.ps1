@@ -8,7 +8,17 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     exit 2
 }
 
-$names = docker compose -f $compose -p $project ps --format "{{.Name}}" 2>$null
+docker info | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Docker Engine is not running. Start Docker Desktop (Windows/WSL2) or the Docker daemon, then retry."
+    exit 7
+}
+
+$names = docker compose -f $compose -p $project ps --format "{{.Name}}"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Docker Engine is not running or Compose cannot talk to the daemon. Start Docker Desktop/Engine, then retry."
+    exit 7
+}
 if (-not $names) {
     Write-Host "This project's Milvus containers are not started. Run scripts/milvus-up.ps1 (Windows) or scripts/milvus-up.sh (Linux)."
     exit 4

@@ -9,7 +9,15 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 2
 fi
 
-NAMES="$(docker compose -f "$COMPOSE" -p "$PROJECT" ps --format '{{.Name}}' 2>/dev/null || true)"
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker Engine is not running. Start the Docker daemon, then retry."
+  exit 7
+fi
+
+if ! NAMES="$(docker compose -f "$COMPOSE" -p "$PROJECT" ps --format '{{.Name}}')"; then
+  echo "Docker Engine is not running or Compose cannot talk to the daemon. Start the Docker daemon, then retry."
+  exit 7
+fi
 if [ -z "$NAMES" ]; then
   echo "This project's Milvus containers are not started. Run scripts/milvus-up.sh."
   exit 4

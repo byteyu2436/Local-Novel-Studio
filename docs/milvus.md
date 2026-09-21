@@ -51,7 +51,7 @@ The backend health adapter never crashes FastAPI when Milvus is down; Diagnostic
 | Symptom | What to do |
 | --- | --- |
 | Docker is not available | Install Docker Desktop (Windows/WSL2) or Docker Engine. Scripts do not install it. |
-| `dockerDesktopLinuxEngine` pipe missing | Start Docker Desktop and wait until `docker info` shows a ServerVersion. |
+| Docker Engine is not running (`milvus-health` exit 7) | Start Docker Desktop and wait until `docker info` shows a ServerVersion. Do not run `milvus-up` until the engine is up. |
 | Port 19530 is already in use | Stop the other listener, or skip starting this stack until the port is free. |
 | Registry mirror EOF (USTC / Hub) | Retry, or pull the pinned tags from a working Hub mirror and `docker tag` them to the compose names. Do not unpin versions. |
 | Containers are not started | Run `milvus-up`. |
