@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -35,6 +36,9 @@ class Settings(BaseSettings):
         "http://localhost:5173",
     )
     sqlite_echo: bool = Field(default=False)
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    writer_model: str = "qwen3.5:9b"
+    ollama_timeout_seconds: float = Field(default=120.0, gt=0)
 
     @field_validator("app_host")
     @classmethod
@@ -69,6 +73,16 @@ class Settings(BaseSettings):
 
         if sqlite_path.exists() and sqlite_path.is_dir():
             raise ValueError(f"SQLITE_PATH must be a database file, got a directory: {sqlite_path}")
+
+        if ":" not in self.writer_model:
+            raise ValueError("WRITER_MODEL must include an explicit tag, for example 'qwen3.5:9b'.")
+
+        origin = urlparse(self.ollama_base_url)
+        if origin.hostname not in {"127.0.0.1", "localhost"}:
+            raise ValueError(
+                "OLLAMA_BASE_URL must point at a local Ollama process "
+                f"(127.0.0.1/localhost), got {self.ollama_base_url!r}."
+            )
 
         self.data_dir = data_dir
         self.sqlite_path = sqlite_path
