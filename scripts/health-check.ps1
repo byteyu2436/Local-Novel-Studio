@@ -8,11 +8,11 @@ try {
     Write-Host "FastAPI is not reachable on 127.0.0.1:8000. Start scripts/dev-backend.ps1."
 }
 
-Write-Host "Checking Milvus healthz"
+Write-Host "Checking Milvus healthz (this project stack only)"
 try {
-    (Invoke-WebRequest -Uri "http://127.0.0.1:9091/healthz" -UseBasicParsing).Content
+    & "$PSScriptRoot\milvus-health.ps1"
 } catch {
-    Write-Host "Milvus is not reachable. Run scripts/milvus-up.ps1. Vector index is rebuildable and is not Canon."
+    Write-Host "Milvus health check failed. Vector index is rebuildable and is not Canon."
 }
 
 Write-Host "Checking Ollama tags"
