@@ -9,6 +9,7 @@ def required_data_directories(settings: Settings) -> tuple[Path, ...]:
         settings.logs_dir,
         settings.novels_dir,
         settings.cache_dir,
+        settings.imports_dir,
         settings.sqlite_path.parent if settings.sqlite_path is not None else settings.data_dir,
     )
 

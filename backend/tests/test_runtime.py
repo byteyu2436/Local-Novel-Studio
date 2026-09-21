@@ -13,6 +13,7 @@ def test_bootstrap_creates_directories_and_sqlite(isolated_data_dir: Path) -> No
     assert (isolated_data_dir / "logs").is_dir()
     assert (isolated_data_dir / "novels").is_dir()
     assert (isolated_data_dir / "cache").is_dir()
+    assert (isolated_data_dir / "imports").is_dir()
     assert settings.sqlite_path is not None
     assert settings.sqlite_path.is_file()
 
@@ -29,7 +30,7 @@ def test_alembic_upgrade_is_idempotent(isolated_data_dir: Path) -> None:
 
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0001_app_settings"
+    assert version == "0002_import_sources"
     engine.dispose()
 
 

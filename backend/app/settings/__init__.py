@@ -108,6 +108,10 @@ class Settings(BaseSettings):
         return self.data_dir / "cache"
 
     @property
+    def imports_dir(self) -> Path:
+        return self.data_dir / "imports"
+
+    @property
     def database_url(self) -> str:
         if self.sqlite_path is None:
             raise SettingsError("SQLITE_PATH was not resolved.")
