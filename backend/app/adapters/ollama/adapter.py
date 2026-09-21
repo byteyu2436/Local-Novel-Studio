@@ -1,5 +1,7 @@
+import asyncio
 from collections.abc import AsyncIterator
 
+from app.adapters.llm.errors import LLMCancelledError
 from app.adapters.llm.types import (
     ChatChunk,
     ChatMessage,
@@ -70,13 +72,16 @@ class OllamaAdapter:
         self, messages: list[ChatMessage], profile: ModelProfile
     ) -> AsyncIterator[ChatChunk]:
         last_text = ""
-        async for text in self._client.stream_chat(
-            [message.model_dump() for message in messages],
-            profile,
-        ):
-            last_text = text
-            yield ChatChunk(text=text, done=False)
-        yield ChatChunk(text=last_text, done=True)
+        try:
+            async for text in self._client.stream_chat(
+                [message.model_dump() for message in messages],
+                profile,
+            ):
+                last_text = text
+                yield ChatChunk(text=text, done=False)
+            yield ChatChunk(text=last_text, done=True)
+        except asyncio.CancelledError as exc:
+            raise LLMCancelledError() from exc
 
     async def aclose(self) -> None:
         await self._client.aclose()

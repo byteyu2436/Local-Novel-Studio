@@ -1,28 +1,30 @@
 # CY-72 Windows GPU Handoff
 
-This Issue is `SPLIT`. CPU_DEV completed Adapter / Mock / Contract tests only.
+## Status
 
-## Do not treat as passed
+WINDOWS_GPU validation passed on 2026-09-21 against the RTX 5070 Ti.
 
-- Real non-stream chat
-- Real stream chat
-- Real cancel
-- Installed `qwen3.5:9b` digest verification
+CPU_DEV previously completed Adapter / Mock / Contract tests only. Mock/CPU/MPS results were not used as GPU evidence.
 
-Mock/CPU/MPS results are not GPU evidence.
+## Evidence
 
-## Preflight (Windows PowerShell, after switching to the RTX 5070 Ti machine)
+- Host: Windows, NVIDIA GeForce RTX 5070 Ti, driver 616.64, 16303 MiB
+- Ollama: 0.33.2 at `http://127.0.0.1:11434`
+- Model: `qwen3.5:9b` (9.7B parameters, Q4_K_M, GGUF)
+- Digest: `sha256:6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7`
+- Size: 6,594,474,711 bytes (6.6 GB)
+- Peak VRAM observed after smoke: 8788 MiB / 16303 MiB (`llama-server.exe` resident)
+- Real smoke: health + non-stream chat + stream chat + mid-stream cancel
+- `LNS_EXECUTION_PROFILE=windows-gpu`: `tests/test_ollama_adapter.py` + `tests/test_diagnostics.py` → 9 passed in 16.80s
+- `LNS_EXECUTION_PROFILE=cpu-dev`: full backend suite → 21 passed, 1 skipped (real smoke skipped)
+- Local log (gitignored): `data/logs/CY-72-windows-gpu-smoke.txt`
+
+## Commands used
 
 ```powershell
-git checkout <COMMIT_SHA>
-cd backend
-uv sync --group dev
 ollama --version
-ollama list
-# Only on WINDOWS_GPU, if the model is not installed:
-# ollama pull qwen3.5:9b
+ollama pull qwen3.5:9b
 $env:LNS_EXECUTION_PROFILE = "windows-gpu"
-uv run pytest tests/test_ollama_adapter.py -k real_ollama
+cd backend
+.\.venv\Scripts\python.exe -m pytest tests/test_ollama_adapter.py tests/test_diagnostics.py -q
 ```
-
-Record Ollama version, model name/tag/digest, peak VRAM, logs under `data/logs/`, and the commit SHA in the Linear Issue before closing GPU validation.

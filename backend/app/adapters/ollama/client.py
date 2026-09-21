@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Any
@@ -102,6 +103,8 @@ class OllamaClient:
                         yield str(content)
                     if data.get("done"):
                         return
+        except asyncio.CancelledError as exc:
+            raise LLMCancelledError() from exc
         except httpx.TimeoutException as exc:
             raise LLMTimeoutError() from exc
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.NetworkError) as exc:
@@ -135,6 +138,8 @@ class OllamaClient:
         client = await self._client_obj()
         try:
             response = await client.request(method, path, **kwargs)
+        except asyncio.CancelledError as exc:
+            raise LLMCancelledError() from exc
         except httpx.TimeoutException as exc:
             raise LLMTimeoutError() from exc
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.NetworkError) as exc:

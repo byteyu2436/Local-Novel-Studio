@@ -157,9 +157,63 @@ def test_ollama_adapter_normalizes_missing_model() -> None:
     asyncio.run(_run())
 
 
+def _is_windows_gpu() -> bool:
+    get_settings.cache_clear()
+    return get_settings().lns_execution_profile.value == "windows-gpu"
+
+
 @pytest.mark.skipif(
-    get_settings().lns_execution_profile.value != "windows-gpu",
+    not _is_windows_gpu(),
     reason="Real Ollama/qwen3.5:9b smoke is deferred to WINDOWS_GPU.",
 )
-def test_real_ollama_qwen_smoke_deferred() -> None:
-    pytest.fail("This test must only run on the declared Windows GPU machine.")
+def test_real_ollama_qwen_smoke() -> None:
+    settings = get_settings()
+    adapter = OllamaAdapter(settings)
+    profile = default_model_profiles(settings)[ModelRole.WRITER]
+
+    async def _run() -> None:
+        health = await adapter.health()
+        assert health.reachable is True
+        assert health.default_model == "qwen3.5:9b"
+        assert health.default_model_installed is True
+
+        non_stream = await adapter.chat(
+            [ChatMessage(role="user", content="Reply with exactly the word OK.")],
+            profile,
+        )
+        assert non_stream.strip()
+
+        streamed: list[str] = []
+        async for chunk in adapter.stream_chat(
+            [ChatMessage(role="user", content="Reply with exactly the word STREAM.")],
+            profile,
+        ):
+            if chunk.text:
+                streamed.append(chunk.text)
+        assert any(text.strip() for text in streamed)
+
+        first_token = asyncio.Event()
+
+        async def _cancellable_stream() -> None:
+            async for chunk in adapter.stream_chat(
+                [
+                    ChatMessage(
+                        role="user",
+                        content="Count slowly from 1 to 200, one number per line.",
+                    )
+                ],
+                profile,
+            ):
+                if chunk.text and not first_token.is_set():
+                    first_token.set()
+
+        task = asyncio.create_task(_cancellable_stream())
+        await asyncio.wait_for(first_token.wait(), timeout=settings.ollama_timeout_seconds)
+        assert not task.done(), "stream completed before cancel could be requested"
+        task.cancel()
+        with pytest.raises(LLMCancelledError):
+            await task
+
+        await adapter.aclose()
+
+    asyncio.run(_run())
