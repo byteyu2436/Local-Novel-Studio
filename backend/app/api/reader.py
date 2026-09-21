@@ -6,8 +6,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_session
 from app.domain.catalog import CatalogError
 from app.schemas.imports import ImportErrorDTO
-from app.schemas.reader import CanonChapterDTO, ChapterNavDTO, ChapterTocItemDTO, NovelChapterTocDTO
-from app.services.reader import novel_chapter_toc, read_canon_chapter
+from app.schemas.reader import (
+    CanonChapterDTO,
+    ChapterNavDTO,
+    ChapterTocItemDTO,
+    ChapterVersionDTO,
+    NovelChapterTocDTO,
+)
+from app.services.reader import novel_chapter_toc, read_canon_chapter, read_chapter_version
 
 router = APIRouter(tags=["reader"])
 
@@ -15,7 +21,14 @@ router = APIRouter(tags=["reader"])
 def _catalog_http(exc: CatalogError) -> HTTPException:
     code = (
         status.HTTP_404_NOT_FOUND
-        if exc.code in {"novel_not_found", "chapter_not_found", "canon_missing"}
+        if exc.code
+        in {
+            "novel_not_found",
+            "chapter_not_found",
+            "canon_missing",
+            "version_not_found",
+            "version_chapter_mismatch",
+        }
         else status.HTTP_400_BAD_REQUEST
     )
     return HTTPException(status_code=code, detail={"code": exc.code, "message": exc.message})
@@ -89,4 +102,31 @@ def get_canon_chapter(
         has_draft=chapter.has_draft,
         previous=_nav_dto(chapter.previous),
         next=_nav_dto(chapter.next),
+    )
+
+
+@router.get(
+    "/api/chapters/{chapter_id}/versions/{version_id}",
+    response_model=ChapterVersionDTO,
+    responses={404: {"model": ImportErrorDTO}},
+)
+def get_chapter_version(
+    chapter_id: str,
+    version_id: str,
+    session: Annotated[Session, Depends(get_session)],
+) -> ChapterVersionDTO:
+    try:
+        version = read_chapter_version(session, chapter_id, version_id)
+    except CatalogError as exc:
+        raise _catalog_http(exc) from exc
+    return ChapterVersionDTO(
+        novel_id=version.novel_id,
+        chapter_id=version.chapter_id,
+        version_id=version.version_id,
+        version_kind=version.version_kind,
+        body=version.body,
+        is_canon=version.is_canon,
+        created_at=version.created_at,
+        import_source_id=version.import_source_id,
+        parent_version_id=version.parent_version_id,
     )

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -39,3 +41,15 @@ class CanonChapterDTO(BaseModel):
     has_draft: bool
     previous: ChapterNavDTO | None
     next: ChapterNavDTO | None
+
+
+class ChapterVersionDTO(BaseModel):
+    novel_id: str
+    chapter_id: str
+    version_id: str
+    version_kind: str
+    body: str
+    is_canon: bool
+    created_at: datetime
+    import_source_id: str | None = None
+    parent_version_id: str | None = None

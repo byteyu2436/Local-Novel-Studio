@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -127,4 +128,48 @@ def read_canon_chapter(session: Session, chapter_id: str) -> CanonChapterRead:
         has_draft=_has_draft(current),
         previous=previous,
         next=nxt,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ChapterVersionRead:
+    novel_id: str
+    chapter_id: str
+    version_id: str
+    version_kind: str
+    body: str
+    is_canon: bool
+    created_at: datetime
+    import_source_id: str | None
+    parent_version_id: str | None
+
+
+def read_chapter_version(
+    session: Session, chapter_id: str, version_id: str
+) -> ChapterVersionRead:
+    """Explicit version preview. Draft/history never report is_canon=true."""
+
+    chapter = require_chapter(session, chapter_id)
+    version = session.get(ChapterVersion, version_id)
+    if version is None:
+        raise CatalogError("version_not_found", "Chapter version does not exist.")
+    if version.chapter_id != chapter.id:
+        raise CatalogError(
+            "version_chapter_mismatch",
+            "Version does not belong to this chapter.",
+        )
+    is_canon = (
+        version.id == chapter.current_canon_version_id
+        and version.version_kind != VersionKind.DRAFT.value
+    )
+    return ChapterVersionRead(
+        novel_id=chapter.novel_id,
+        chapter_id=chapter.id,
+        version_id=version.id,
+        version_kind=version.version_kind,
+        body=version.body,
+        is_canon=is_canon,
+        created_at=version.created_at,
+        import_source_id=version.import_source_id,
+        parent_version_id=version.parent_version_id,
     )
