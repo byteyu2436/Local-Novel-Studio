@@ -51,6 +51,8 @@ pnpm dev
 - Backend health: http://127.0.0.1:8000/health
 - Frontend: http://127.0.0.1:5173
 
+首次启动会在 `DATA_DIR`（默认 `./data`）下创建 `logs/`、`novels/`、`cache/` 和 `app.db`，并通过 Alembic 升级 SQLite schema。数据库路径可用 `SQLITE_PATH` 覆盖；应用不会自动删除或重建已有数据库。
+
 也可使用 `scripts/dev-backend.ps1` 与 `scripts/dev-frontend.ps1`。
 
 ## 质量命令

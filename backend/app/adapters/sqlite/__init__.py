@@ -1,11 +1,32 @@
-"""SQLite adapter package.
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
-Engine, session factory, DATA_DIR initialization, and Alembic belong to a
-later Issue. This module only reserves the SQLAlchemy 2 declarative base.
-"""
+from app.adapters.sqlite.base import Base
+from app.adapters.sqlite.engine import create_sqlite_engine
+from app.adapters.sqlite.migrate import upgrade_head
+from app.adapters.sqlite.models import AppSetting
+from app.adapters.sqlite.session import create_session_factory
+from app.settings import Settings, get_settings
+from app.storage.paths import ensure_data_layout
 
-from sqlalchemy.orm import DeclarativeBase
+
+def bootstrap_local_runtime(
+    settings: Settings | None = None,
+) -> tuple[Settings, Engine, sessionmaker[Session]]:
+    """Create data directories, open SQLite, and upgrade schema in place."""
+
+    resolved = settings or get_settings()
+    ensure_data_layout(resolved)
+    engine = create_sqlite_engine(resolved)
+    upgrade_head(resolved)
+    return resolved, engine, create_session_factory(engine)
 
 
-class Base(DeclarativeBase):
-    """Declarative base for future domain models."""
+__all__ = [
+    "AppSetting",
+    "Base",
+    "bootstrap_local_runtime",
+    "create_session_factory",
+    "create_sqlite_engine",
+    "upgrade_head",
+]

@@ -16,5 +16,6 @@
 
 - 本机服务只绑定 `127.0.0.1`。
 - 不把云 API Key 写入配置。
+- SQLite schema 只通过 Alembic 升级，启动时禁止 drop / recreate。
 - 一个 Linear Issue 对应一个功能分支；Commit 使用 Conventional Commits 并带 Issue ID。
 - v0.1 骨架不实现小说业务，也不直接调用 Ollama / Milvus。
