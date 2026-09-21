@@ -56,15 +56,19 @@ def test_txt_source_checksums_original_bytes(isolated_data_dir: Path) -> None:
         for session in session_scope(factory):
             source = create_txt_source(
                 session,
+                source_id="pending",
                 original_filename="novel.txt",
                 original_storage_path=relative_import_storage_path("pending", "novel.txt"),
                 raw_bytes=raw,
+                detected_encoding="gbk",
             )
             assert source.source_type == SourceType.TXT
             assert source.checksum == sha256_hex(raw)
             assert source.raw_text is None
             assert source.original_filename == "novel.txt"
             assert source.original_storage_path == "imports/pending/novel.txt"
+            assert source.detected_encoding == "gbk"
+            assert source.encoding_uncertain is False
     finally:
         engine.dispose()
 
@@ -178,6 +182,6 @@ def test_upgrade_from_v0_1_baseline_preserves_settings(isolated_data_dir: Path) 
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
         assert theme == "dark"
-        assert version == "0002_import_sources"
+        assert version == "0003_import_encoding"
     finally:
         engine.dispose()

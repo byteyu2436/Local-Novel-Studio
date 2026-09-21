@@ -20,6 +20,8 @@ def create_paste_source(session: Session, raw_text: str) -> ImportSource:
         original_storage_path=None,
         raw_text=raw_text,
         raw_byte_size=len(payload),
+        detected_encoding=None,
+        encoding_uncertain=False,
     )
     session.add(source)
     session.flush()
@@ -29,12 +31,15 @@ def create_paste_source(session: Session, raw_text: str) -> ImportSource:
 def create_txt_source(
     session: Session,
     *,
+    source_id: str,
     original_filename: str,
     original_storage_path: str,
     raw_bytes: bytes,
+    detected_encoding: str | None,
+    encoding_uncertain: bool = False,
 ) -> ImportSource:
     source = ImportSource(
-        id=str(uuid4()),
+        id=source_id,
         source_type=SourceType.TXT.value,
         checksum=sha256_hex(raw_bytes),
         created_at=datetime.now(UTC),
@@ -43,6 +48,8 @@ def create_txt_source(
         original_storage_path=original_storage_path,
         raw_text=None,
         raw_byte_size=len(raw_bytes),
+        detected_encoding=detected_encoding,
+        encoding_uncertain=encoding_uncertain,
     )
     session.add(source)
     session.flush()

@@ -43,6 +43,18 @@ def relative_import_storage_path(source_id: str, filename: str) -> str:
     return f"imports/{source_id}/{safe_name}"
 
 
+def validate_txt_filename(filename: str) -> str:
+    name = Path(filename).name.strip()
+    if not name:
+        raise ImportValidationError("txt_filename_required", "TXT filename is required.")
+    if not name.lower().endswith(".txt"):
+        raise ImportValidationError(
+            "txt_unsupported_type",
+            "Only .txt files can be imported.",
+        )
+    return name
+
+
 def validate_paste_text(text: str, *, max_chars: int | None = None) -> None:
     limit = PASTE_MAX_CHARS if max_chars is None else max_chars
     if not text.strip():
@@ -69,6 +81,18 @@ def normalize_imported_text(raw: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class PasteImportOutcome:
+    source_id: str
+    parse_status: ParseStatus
+    error_code: str | None = None
+    error_message: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return self.error_code is None
+
+
+@dataclass(frozen=True, slots=True)
+class TxtImportOutcome:
     source_id: str
     parse_status: ParseStatus
     error_code: str | None = None

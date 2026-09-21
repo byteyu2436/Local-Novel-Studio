@@ -1,6 +1,16 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, event, inspect
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    event,
+    inspect,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.adapters.sqlite.base import Base
@@ -62,6 +72,8 @@ class ImportSource(Base):
     original_storage_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    detected_encoding: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    encoding_uncertain: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     normalized: Mapped["ImportSourceNormalizedText | None"] = relationship(
         back_populates="import_source",

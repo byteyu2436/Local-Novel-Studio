@@ -19,6 +19,8 @@ class ImportSourceDTO(BaseModel):
     raw_byte_size: int
     raw_char_count: int
     has_normalized_text: bool
+    detected_encoding: str | None = None
+    encoding_uncertain: bool = False
     raw_text: str | None = None
     normalized_text: str | None = None
 
