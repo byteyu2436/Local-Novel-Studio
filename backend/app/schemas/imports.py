@@ -73,3 +73,41 @@ class ImportSpanDTO(BaseModel):
     start_offset: int
     end_offset: int
     text: str
+
+
+class ConfirmCandidateDTO(BaseModel):
+    candidate_id: str
+    sequence: int
+    original_label: str = ""
+    title_candidate: str = ""
+    start_offset: int
+    end_offset: int
+    confidence: float = 1.0
+    classification: Literal["single", "multi", "unstructured"] = "multi"
+
+
+class ImportConfirmRequest(BaseModel):
+    checksum: str
+    destination: Literal["new_novel", "append"] = "new_novel"
+    novel_id: str | None = None
+    novel_title: str | None = None
+    unstructured_ack: bool = False
+    classification: Literal["single", "multi", "unstructured"] = "multi"
+    candidates: list[ConfirmCandidateDTO]
+
+
+class ConfirmedChapterDTO(BaseModel):
+    chapter_id: str
+    sequence: int
+    display_title: str
+    start_offset: int | None = None
+    end_offset: int | None = None
+
+
+class ImportConfirmDTO(BaseModel):
+    import_source_id: str
+    novel_id: str
+    novel_title: str
+    destination: Literal["new_novel", "append"]
+    idempotent: bool
+    chapters: list[ConfirmedChapterDTO]

@@ -8,6 +8,7 @@ from fastapi import (
     HTTPException,
     Query,
     Request,
+    Response,
     UploadFile,
     status,
 )
@@ -16,11 +17,16 @@ from sqlalchemy.orm import Session
 
 from app.adapters.sqlite.models import ImportSource
 from app.api.deps import get_session
-from app.domain.chapter_candidate import candidate_preview
+from app.domain.catalog import CatalogError
+from app.domain.chapter_candidate import ChapterCandidate, candidate_preview
+from app.domain.chapter_detect import ChapterShape
 from app.domain.importing import ImportValidationError, ParseStatus, SourceType, sha256_hex
 from app.schemas.imports import (
     ChapterCandidateDTO,
+    ConfirmedChapterDTO,
     DetectionResultDTO,
+    ImportConfirmDTO,
+    ImportConfirmRequest,
     ImportErrorDTO,
     ImportSourceDTO,
     ImportSpanDTO,
@@ -29,6 +35,7 @@ from app.schemas.imports import (
     TxtPreviewDTO,
 )
 from app.services.chapter_detector import detect_import_chapters, preview_candidate_text
+from app.services.import_confirm import confirm_import
 from app.services.importer import (
     import_pasted_text,
     import_txt_file,
@@ -357,3 +364,87 @@ def get_import_span(
         end_offset=end,
         text=text,
     )
+
+
+def _confirm_candidates(payload: ImportConfirmRequest) -> tuple[ChapterCandidate, ...]:
+    return tuple(
+        ChapterCandidate(
+            candidate_id=item.candidate_id,
+            sequence=item.sequence,
+            original_label=item.original_label,
+            title_candidate=item.title_candidate,
+            start_offset=item.start_offset,
+            end_offset=item.end_offset,
+            confidence=item.confidence,
+            classification=ChapterShape(item.classification),
+        )
+        for item in payload.candidates
+    )
+
+
+def _confirm_dto(outcome) -> ImportConfirmDTO:
+    return ImportConfirmDTO(
+        import_source_id=outcome.import_source_id,
+        novel_id=outcome.novel_id,
+        novel_title=outcome.novel_title,
+        destination=outcome.destination,
+        idempotent=outcome.idempotent,
+        chapters=[
+            ConfirmedChapterDTO(
+                chapter_id=item.chapter_id,
+                sequence=item.sequence,
+                display_title=item.display_title,
+                start_offset=item.start_offset,
+                end_offset=item.end_offset,
+            )
+            for item in outcome.chapters
+        ],
+    )
+
+
+@router.post(
+    "/{source_id}/confirm",
+    response_model=ImportConfirmDTO,
+    status_code=status.HTTP_201_CREATED,
+    responses={400: {"model": ImportErrorDTO}, 404: {"model": ImportErrorDTO}},
+)
+def confirm_import_source(
+    source_id: str,
+    payload: ImportConfirmRequest,
+    session: Annotated[Session, Depends(get_session)],
+    response: Response,
+) -> ImportConfirmDTO:
+    try:
+        outcome = confirm_import(
+            session,
+            source_id,
+            checksum=payload.checksum,
+            destination=payload.destination,
+            candidates=_confirm_candidates(payload),
+            novel_id=payload.novel_id,
+            novel_title=payload.novel_title,
+            unstructured_ack=payload.unstructured_ack,
+            classification=payload.classification,
+        )
+    except ImportValidationError as exc:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "import_not_found"
+            else status.HTTP_409_CONFLICT
+            if exc.code in {"import_normalized_unavailable", "import_checksum_mismatch"}
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise _http_error(exc, status_code=code, source_id=source_id) from exc
+    except CatalogError as exc:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code in {"novel_not_found", "chapter_not_found", "import_source_not_found"}
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(
+            status_code=code,
+            detail={"code": exc.code, "message": exc.message, "import_source_id": source_id},
+        ) from exc
+    if outcome.idempotent:
+        response.status_code = status.HTTP_200_OK
+    return _confirm_dto(outcome)
