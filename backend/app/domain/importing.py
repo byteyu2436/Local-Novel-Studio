@@ -101,3 +101,17 @@ class TxtImportOutcome:
     @property
     def ok(self) -> bool:
         return self.error_code is None
+
+
+TXT_PREVIEW_CHARS = 4_000
+
+
+@dataclass(frozen=True, slots=True)
+class TxtPreviewOutcome:
+    original_filename: str
+    raw_byte_size: int
+    detected_encoding: str | None
+    encoding_uncertain: bool
+    preview_text: str
+    preview_truncated: bool
+    char_count: int

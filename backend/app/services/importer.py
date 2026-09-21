@@ -11,15 +11,17 @@ from app.adapters.sqlite.import_sources import (
 )
 from app.adapters.sqlite.models import ImportSource
 from app.domain.importing import (
+    TXT_PREVIEW_CHARS,
     ImportValidationError,
     ParseStatus,
     PasteImportOutcome,
     TxtImportOutcome,
+    TxtPreviewOutcome,
     normalize_imported_text,
     validate_paste_text,
     validate_txt_filename,
 )
-from app.domain.txt_encoding import decode_txt_bytes
+from app.domain.txt_encoding import TxtDecodeResult, decode_txt_bytes
 from app.settings import Settings
 from app.storage.imports import (
     TXT_MAX_BYTES,
@@ -61,6 +63,53 @@ def import_pasted_text(session: Session, text: str) -> PasteImportOutcome:
     return PasteImportOutcome(source_id=source_id, parse_status=ParseStatus.NORMALIZED)
 
 
+def _decode_txt_payload(
+    *,
+    filename: str,
+    payload: bytes,
+    encoding: str | None,
+) -> tuple[str, TxtDecodeResult]:
+    safe_name = validate_txt_filename(filename)
+    if len(payload) > TXT_MAX_BYTES:
+        raise ImportValidationError(
+            "txt_too_large",
+            f"TXT file exceeds the {TXT_MAX_BYTES} byte limit.",
+        )
+    decoded = decode_txt_bytes(payload, encoding=encoding)
+    if not decoded.ok or decoded.normalized_text is None:
+        raise ImportValidationError(
+            decoded.error_code or "txt_decode_failed",
+            decoded.error_message or "The TXT file could not be decoded.",
+        )
+    return safe_name, decoded
+
+
+def preview_txt_file(
+    *,
+    filename: str,
+    payload: bytes,
+    encoding: str | None = None,
+) -> TxtPreviewOutcome:
+    """Decode a TXT for UI preview without writing Original Source."""
+
+    safe_name, decoded = _decode_txt_payload(
+        filename=filename,
+        payload=payload,
+        encoding=encoding,
+    )
+    text = decoded.normalized_text or ""
+    truncated = len(text) > TXT_PREVIEW_CHARS
+    return TxtPreviewOutcome(
+        original_filename=safe_name,
+        raw_byte_size=len(payload),
+        detected_encoding=decoded.encoding,
+        encoding_uncertain=decoded.uncertain,
+        preview_text=text[:TXT_PREVIEW_CHARS],
+        preview_truncated=truncated,
+        char_count=len(text),
+    )
+
+
 def import_txt_file(
     session: Session,
     settings: Settings,
@@ -71,20 +120,11 @@ def import_txt_file(
 ) -> TxtImportOutcome:
     """Persist original TXT bytes, then a derived normalized copy."""
 
-    safe_name = validate_txt_filename(filename)
-    if len(payload) > TXT_MAX_BYTES:
-        raise ImportValidationError(
-            "txt_too_large",
-            f"TXT file exceeds the {TXT_MAX_BYTES} byte limit.",
-        )
-    decoded = decode_txt_bytes(payload, encoding=encoding)
-    if not decoded.ok:
-        raise ImportValidationError(
-            decoded.error_code or "txt_decode_failed",
-            decoded.error_message or "The TXT file could not be decoded.",
-        )
-    if decoded.normalized_text is None:
-        raise ImportValidationError("txt_decode_failed", "The TXT file could not be decoded.")
+    safe_name, decoded = _decode_txt_payload(
+        filename=filename,
+        payload=payload,
+        encoding=encoding,
+    )
 
     source_id = str(uuid4())
     try:

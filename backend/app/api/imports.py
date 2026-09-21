@@ -7,11 +7,18 @@ from sqlalchemy.orm import Session
 from app.adapters.sqlite.models import ImportSource
 from app.api.deps import get_session
 from app.domain.importing import ImportValidationError, ParseStatus, SourceType, sha256_hex
-from app.schemas.imports import ImportErrorDTO, ImportSourceDTO, ImportTextDTO, PasteImportRequest
+from app.schemas.imports import (
+    ImportErrorDTO,
+    ImportSourceDTO,
+    ImportTextDTO,
+    PasteImportRequest,
+    TxtPreviewDTO,
+)
 from app.services.importer import (
     import_pasted_text,
     import_txt_file,
     original_txt_bytes,
+    preview_txt_file,
     require_import_source,
 )
 from app.storage.imports import original_txt_path
@@ -90,6 +97,36 @@ def paste_import(
             },
         )
     return _to_dto(require_import_source(session, outcome.source_id), include_text=True)
+
+
+@router.post(
+    "/txt/preview",
+    response_model=TxtPreviewDTO,
+    responses={400: {"model": ImportErrorDTO}},
+)
+async def txt_preview(
+    file: Annotated[UploadFile, File()],
+    encoding: Annotated[str | None, Form()] = None,
+) -> TxtPreviewDTO:
+    payload = await file.read()
+    override = encoding.strip() if encoding else None
+    try:
+        outcome = preview_txt_file(
+            filename=file.filename or "",
+            payload=payload,
+            encoding=override,
+        )
+    except ImportValidationError as exc:
+        raise _http_error(exc, status_code=status.HTTP_400_BAD_REQUEST) from exc
+    return TxtPreviewDTO(
+        original_filename=outcome.original_filename,
+        raw_byte_size=outcome.raw_byte_size,
+        detected_encoding=outcome.detected_encoding,
+        encoding_uncertain=outcome.encoding_uncertain,
+        preview_text=outcome.preview_text,
+        preview_truncated=outcome.preview_truncated,
+        char_count=outcome.char_count,
+    )
 
 
 @router.post(

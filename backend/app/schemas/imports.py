@@ -35,3 +35,13 @@ class ImportErrorDTO(BaseModel):
     code: str
     message: str
     import_source_id: str | None = None
+
+
+class TxtPreviewDTO(BaseModel):
+    original_filename: str
+    raw_byte_size: int
+    detected_encoding: str | None
+    encoding_uncertain: bool
+    preview_text: str
+    preview_truncated: bool
+    char_count: int

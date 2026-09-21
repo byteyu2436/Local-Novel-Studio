@@ -20,6 +20,9 @@ export default function HomePage() {
           <Link to="/import">粘贴导入正文</Link>
         </Button>
         <Button asChild variant="outline">
+          <Link to="/import/txt">上传 TXT</Link>
+        </Button>
+        <Button asChild variant="ghost">
           <Link to="/diagnostics">打开系统健康页</Link>
         </Button>
       </div>

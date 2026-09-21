@@ -4,6 +4,7 @@ import DiagnosticsPage from "@/pages/DiagnosticsPage";
 import HomePage from "@/pages/HomePage";
 import ImportPreviewPlaceholderPage from "@/pages/ImportPreviewPlaceholderPage";
 import PasteImportPage from "@/pages/PasteImportPage";
+import TxtImportPage from "@/pages/TxtImportPage";
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/import" element={<PasteImportPage />} />
+        <Route path="/import/txt" element={<TxtImportPage />} />
         <Route
           path="/imports/:sourceId/preview"
           element={<ImportPreviewPlaceholderPage />}

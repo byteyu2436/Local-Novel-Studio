@@ -13,10 +13,11 @@ def _post_txt(
     *,
     filename: str = "novel.txt",
     encoding: str | None = None,
+    path: str = "/api/imports/txt",
 ):
     data = {"encoding": encoding} if encoding is not None else None
     return client.post(
-        "/api/imports/txt",
+        path,
         files={"file": (filename, payload, "text/plain")},
         data=data,
     )
@@ -65,6 +66,38 @@ def test_txt_import_override_decodes_gbk(client: TestClient) -> None:
     assert response.status_code == 201
     assert response.json()["detected_encoding"] == "gbk"
     assert response.json()["encoding_uncertain"] is False
+
+
+def test_txt_preview_decodes_without_persisting(client: TestClient, isolated_data_dir) -> None:
+    payload = SAMPLE.encode("gbk")
+    response = _post_txt(client, payload, path="/api/imports/txt/preview")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["detected_encoding"] == "gbk"
+    assert body["original_filename"] == "novel.txt"
+    assert body["raw_byte_size"] == len(payload)
+    assert "林深时见鹿" in body["preview_text"]
+    assert body["preview_truncated"] is False
+    imports_dir = isolated_data_dir / "imports"
+    leftovers = list(imports_dir.rglob("*")) if imports_dir.exists() else []
+    assert leftovers == []
+    with client.app.state.engine.connect() as connection:
+        count = connection.execute(text("SELECT COUNT(*) FROM import_sources")).scalar_one()
+    assert count == 0
+
+
+def test_txt_preview_override_and_reject_non_txt(client: TestClient) -> None:
+    payload = SAMPLE.encode("gbk")
+    ok = _post_txt(client, payload, encoding="gbk", path="/api/imports/txt/preview")
+    assert ok.status_code == 200
+    assert ok.json()["detected_encoding"] == "gbk"
+    assert ok.json()["encoding_uncertain"] is False
+
+    markdown = _post_txt(
+        client, SAMPLE.encode(), filename="notes.md", path="/api/imports/txt/preview"
+    )
+    assert markdown.status_code == 400
+    assert markdown.json()["detail"]["code"] == "txt_unsupported_type"
 
 
 def test_txt_import_rejects_non_txt_and_binary_without_files(
