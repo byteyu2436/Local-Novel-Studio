@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   checkExtraLabel,
+  copyDiagnosticsSummary,
   diagnosticsView,
   gpuPresenceFromCode,
   gpuPresenceLabel,
@@ -92,9 +93,9 @@ describe("diagnostics status rendering", () => {
     expect(partial.checks.find((item) => item.id === "milvus")?.code).toBe(
       "partial_missing",
     );
-    expect(checkExtraLabel(partial.checks.find((item) => item.id === "gpu")!)).toBe(
-      "GPU 探测失败",
-    );
+    expect(
+      checkExtraLabel(partial.checks.find((item) => item.id === "gpu")!),
+    ).toBe("GPU 探测失败");
   });
 
   it("keeps previous checks visible while a refresh is in flight", () => {
@@ -119,6 +120,26 @@ describe("diagnostics status rendering", () => {
     expect(refreshing.phase).toBe("ready");
     expect(refreshing.checks.find((item) => item.id === "ollama")?.status).toBe(
       "error",
+    );
+  });
+
+  it("copies when clipboard is available and falls back otherwise", async () => {
+    await expect(
+      copyDiagnosticsSummary("summary", {
+        writeText: async (value) => {
+          expect(value).toBe("summary");
+        },
+      }),
+    ).resolves.toBe("copied");
+    await expect(
+      copyDiagnosticsSummary("summary", {
+        writeText: async () => {
+          throw new Error("NotAllowedError");
+        },
+      }),
+    ).resolves.toBe("fallback");
+    await expect(copyDiagnosticsSummary("summary", null)).resolves.toBe(
+      "fallback",
     );
   });
 });

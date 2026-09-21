@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   checkExtraLabel,
+  copyDiagnosticsSummary,
   diagnosticsView,
   overallLabel,
   statusClassName,
@@ -17,7 +18,9 @@ export default function DiagnosticsPage() {
     | { type: "error" }
     | { type: "ok"; payload: unknown }
   >({ type: "loading" });
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "fallback">(
+    "idle",
+  );
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const view = useMemo(
@@ -42,7 +45,7 @@ export default function DiagnosticsPage() {
         ) {
           setPrevious(payload as DiagnosticsResponse);
         }
-        setCopied(false);
+        setCopyState("idle");
       })
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -54,8 +57,8 @@ export default function DiagnosticsPage() {
 
   async function copySummary() {
     if (!view.data) return;
-    await navigator.clipboard.writeText(view.data.copy_summary);
-    setCopied(true);
+    const result = await copyDiagnosticsSummary(view.data.copy_summary);
+    setCopyState(result);
   }
 
   return (
@@ -90,9 +93,21 @@ export default function DiagnosticsPage() {
           onClick={() => void copySummary()}
           disabled={!view.data}
         >
-          {copied ? "已复制摘要" : "复制诊断摘要"}
+          {copyState === "copied"
+            ? "已复制摘要"
+            : copyState === "fallback"
+              ? "请手动复制下方摘要"
+              : "复制诊断摘要"}
         </Button>
       </div>
+
+      {copyState === "fallback" && view.data && (
+        <textarea
+          readOnly
+          className="min-h-40 w-full rounded-xl border bg-muted/40 p-3 font-mono text-xs"
+          value={view.data.copy_summary}
+        />
+      )}
 
       {view.phase === "loading" && (
         <section className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-slate-800">

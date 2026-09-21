@@ -166,3 +166,21 @@ export function checkExtraLabel(check: DiagnosticCheck): string | null {
   if (presence === "unknown") return null;
   return gpuPresenceLabel(presence);
 }
+
+export type CopyResult = "copied" | "fallback";
+
+export async function copyDiagnosticsSummary(
+  text: string,
+  clipboard: { writeText: (value: string) => Promise<void> } | null = null,
+): Promise<CopyResult> {
+  try {
+    const api =
+      clipboard ??
+      (typeof navigator !== "undefined" ? navigator.clipboard : null);
+    if (!api?.writeText) return "fallback";
+    await api.writeText(text);
+    return "copied";
+  } catch {
+    return "fallback";
+  }
+}

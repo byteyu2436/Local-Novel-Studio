@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -17,12 +17,23 @@ from app.adapters.milvus.types import MilvusHealth
 from app.schemas.diagnostics import CheckStatus, DiagnosticCheck, DiagnosticsResponse
 from app.settings import Settings
 
+APP_VERSION = "0.1.0"
+_WIN_ABS = re.compile(r"(?i)(?:[a-z]:\\|\\\\)[^\s,;]+")
+_WIN_SLASH_ABS = re.compile(r"(?i)(?<![a-z])[a-z]:/[^\s,;]+")
+_POSIX_ABS = re.compile(r"/(?:home|Users|root|opt|var|tmp)/[^\s,;]+")
+
 
 def _display_path(path: Path) -> str:
     try:
         return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
         return path.name
+
+
+def redact_local_paths(text: str) -> str:
+    redacted = _WIN_ABS.sub("<redacted-path>", text)
+    redacted = _WIN_SLASH_ABS.sub("<redacted-path>", redacted)
+    return _POSIX_ABS.sub("<redacted-path>", redacted)
 
 
 def _worst(*statuses: CheckStatus) -> CheckStatus:
@@ -208,16 +219,16 @@ def _gpu_check(snapshot: GpuSnapshot) -> DiagnosticCheck:
 
 def build_copy_summary(checks: list[DiagnosticCheck], overall: CheckStatus) -> str:
     lines = [
-        "Local Novel Studio diagnostics",
+        f"Local Novel Studio v{APP_VERSION}",
         f"overall={overall}",
-        f"pid={os.getpid()}",
+        f"runtime=python {platform.python_version()} {platform.system()}",
     ]
     for check in checks:
         extra = f" [{check.code}]" if check.code else ""
         lines.append(f"{check.id}: {check.status}{extra} — {check.summary}")
         if check.hint:
             lines.append(f"  hint: {check.hint}")
-    return "\n".join(lines)
+    return redact_local_paths("\n".join(lines))
 
 
 async def collect_diagnostics(
