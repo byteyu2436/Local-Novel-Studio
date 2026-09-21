@@ -16,8 +16,8 @@ def test_compose_file_pins_versions_and_avoids_latest() -> None:
     assert "milvusdb/milvus:v2.5.4" in text
     assert "quay.io/coreos/etcd:v3.5.16" in text
     assert "minio/minio:RELEASE.2024-12-18T13-15-44Z" in text
-    assert "19530:19530" in text
-    assert "9091:9091" in text
+    assert "127.0.0.1:19530:19530" in text
+    assert "127.0.0.1:9091:9091" in text
 
 
 @pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed")
@@ -29,6 +29,8 @@ def test_docker_compose_config_validates() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+    assert "host_ip: 127.0.0.1" in result.stdout
+    assert result.stdout.count("host_ip: 127.0.0.1") >= 2
 
 
 def test_milvus_health_is_unavailable_without_container() -> None:
