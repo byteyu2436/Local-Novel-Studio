@@ -238,6 +238,77 @@ def test_ollama_adapter_normalizes_missing_model() -> None:
     asyncio.run(_run())
 
 
+def _stream_adapter_for_error(exc: BaseException) -> OllamaAdapter:
+    settings = get_settings()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise exc
+
+    http_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url=settings.ollama_base_url,
+        timeout=5,
+    )
+    return OllamaAdapter(
+        settings,
+        client=OllamaClient(settings.ollama_base_url, timeout=5, client=http_client),
+    )
+
+
+async def _consume_stream(adapter: OllamaAdapter) -> None:
+    profile = default_model_profiles(get_settings())[ModelRole.WRITER]
+    try:
+        async for _chunk in adapter.stream_chat(
+            [ChatMessage(role="user", content="hi")],
+            profile,
+        ):
+            pass
+    finally:
+        await adapter.aclose()
+
+
+def test_stream_read_and_protocol_errors_are_unavailable_not_cancelled() -> None:
+    async def _run() -> None:
+        request = httpx.Request("POST", "http://127.0.0.1:11434/api/chat")
+        for exc in (
+            httpx.ReadError("peer closed", request=request),
+            httpx.RemoteProtocolError("disconnected", request=request),
+        ):
+            adapter = _stream_adapter_for_error(exc)
+            with pytest.raises(LLMUnavailableError) as info:
+                await _consume_stream(adapter)
+            assert info.value.code == "llm_unavailable"
+            assert info.value.retryable is True
+            assert not isinstance(info.value, LLMCancelledError)
+
+    asyncio.run(_run())
+
+
+def test_stream_timeout_is_not_cancelled() -> None:
+    request = httpx.Request("POST", "http://127.0.0.1:11434/api/chat")
+    adapter = _stream_adapter_for_error(httpx.ReadTimeout("slow", request=request))
+
+    async def _run() -> None:
+        with pytest.raises(LLMTimeoutError) as info:
+            await _consume_stream(adapter)
+        assert info.value.code == "llm_timeout"
+        assert info.value.retryable is True
+
+    asyncio.run(_run())
+
+
+def test_stream_cancelled_error_stays_cancelled() -> None:
+    adapter = _stream_adapter_for_error(asyncio.CancelledError())
+
+    async def _run() -> None:
+        with pytest.raises(LLMCancelledError) as info:
+            await _consume_stream(adapter)
+        assert info.value.code == "llm_cancelled"
+        assert info.value.retryable is False
+
+    asyncio.run(_run())
+
+
 def _is_windows_gpu() -> bool:
     get_settings.cache_clear()
     return get_settings().lns_execution_profile.value == "windows-gpu"

@@ -110,7 +110,7 @@ class OllamaClient:
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.NetworkError) as exc:
             raise LLMUnavailableError() from exc
         except httpx.HTTPError as exc:
-            raise LLMCancelledError(str(exc)) from exc
+            raise LLMUnavailableError() from exc
 
     def _chat_payload(
         self, messages: list[dict[str, str]], profile: ModelProfile, *, stream: bool
