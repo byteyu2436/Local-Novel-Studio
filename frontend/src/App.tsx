@@ -1,67 +1,123 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  overallLabel,
+  statusClassName,
+  type CheckStatus,
+} from "@/lib/diagnostics";
 
-type HealthState = "checking" | "ok" | "unavailable";
+type DiagnosticCheck = {
+  id: string;
+  label: string;
+  status: CheckStatus;
+  summary: string;
+  hint: string | null;
+};
+
+type DiagnosticsResponse = {
+  generated_at: string;
+  overall_status: CheckStatus;
+  checks: DiagnosticCheck[];
+  copy_summary: string;
+};
 
 export default function App() {
-  const [health, setHealth] = useState<HealthState>("checking");
+  const [data, setData] = useState<DiagnosticsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch("/health", { signal: controller.signal })
+    fetch("/api/system/diagnostics", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
-          setHealth("unavailable");
-          return;
+          throw new Error(`Diagnostics HTTP ${response.status}`);
         }
-        const payload = (await response.json()) as { status?: string };
-        setHealth(payload.status === "ok" ? "ok" : "unavailable");
+        setData((await response.json()) as DiagnosticsResponse);
+        setError(null);
+        setCopied(false);
       })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setHealth("unavailable");
-        }
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(
+          "无法读取诊断接口。请先运行 scripts/dev-backend.ps1，然后刷新。",
+        );
       });
 
     return () => controller.abort();
-  }, []);
+  }, [refreshNonce]);
+
+  async function copySummary() {
+    if (!data) return;
+    await navigator.clipboard.writeText(data.copy_summary);
+    setCopied(true);
+  }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-6 py-16">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
       <div className="space-y-3">
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
           v0.1.0 Foundation
         </p>
-        <h1 className="text-4xl font-semibold tracking-tight">
-          Local Novel Studio
-        </h1>
+        <h1 className="text-4xl font-semibold tracking-tight">系统健康</h1>
         <p className="max-w-2xl text-lg leading-7 text-muted-foreground">
-          开源、本地优先的长篇小说续写工具。当前已建立可独立启动的前后端骨架；导入、分析与续写会在后续版本接入。
+          本地运行诊断。摘要不含小说正文；GPU 探测失败不会阻止应用启动。
         </p>
       </div>
 
-      <section className="rounded-xl border bg-card p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-base font-medium">本地 API</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {health === "checking" && "正在检查 /health …"}
-              {health === "ok" && "后端已启动，/health 返回 ok。"}
-              {health === "unavailable" &&
-                "后端暂不可达。请先运行 scripts/dev-backend.ps1。"}
+      <div className="flex flex-wrap gap-3">
+        <Button
+          type="button"
+          onClick={() => setRefreshNonce((value) => value + 1)}
+        >
+          刷新诊断
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void copySummary()}
+          disabled={!data}
+        >
+          {copied ? "已复制摘要" : "复制诊断摘要"}
+        </Button>
+      </div>
+
+      {error && (
+        <section className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-900">
+          {error}
+        </section>
+      )}
+
+      {data && (
+        <section className="space-y-4">
+          <div
+            className={`rounded-xl border p-6 ${statusClassName(data.overall_status)}`}
+          >
+            <p className="text-sm font-medium">总体状态</p>
+            <p className="mt-1 text-2xl font-semibold">
+              {overallLabel(data.overall_status)}
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => window.location.reload()}
-            type="button"
-          >
-            刷新状态
-          </Button>
-        </div>
-      </section>
+          {data.checks.map((check) => (
+            <article
+              key={check.id}
+              className={`rounded-xl border p-5 ${statusClassName(check.status)}`}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-base font-medium">{check.label}</h2>
+                <span className="text-sm">{overallLabel(check.status)}</span>
+              </div>
+              <p className="mt-2 text-sm">{check.summary}</p>
+              {check.hint && (
+                <p className="mt-2 text-sm opacity-80">建议：{check.hint}</p>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
     </main>
   );
 }

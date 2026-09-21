@@ -17,8 +17,8 @@ def bootstrap_local_runtime(
 
     resolved = settings or get_settings()
     ensure_data_layout(resolved)
-    engine = create_sqlite_engine(resolved)
     upgrade_head(resolved)
+    engine = create_sqlite_engine(resolved)
     return resolved, engine, create_session_factory(engine)
 
 

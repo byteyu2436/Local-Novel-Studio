@@ -6,7 +6,8 @@ Push-Location backend
 uv run pytest
 Pop-Location
 
-Write-Host ">> frontend build"
+Write-Host ">> frontend test and build"
 Push-Location frontend
+pnpm test
 pnpm build
 Pop-Location

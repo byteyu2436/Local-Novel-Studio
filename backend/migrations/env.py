@@ -1,15 +1,9 @@
-from logging.config import fileConfig
-
 from alembic import context
 from app.adapters.sqlite.base import Base
 from app.adapters.sqlite.models import AppSetting
 from sqlalchemy import engine_from_config, pool
 
 config = context.config
-
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
-
 target_metadata = Base.metadata
 
 # Imported so Alembic autogenerate can see the current models.
