@@ -20,6 +20,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Milvus local volumes
+infra/milvus/volumes/
+
 # OS / IDE
 .DS_Store
 Thumbs.db

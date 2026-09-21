@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     writer_model: str = "qwen3.5:9b"
     ollama_timeout_seconds: float = Field(default=120.0, gt=0)
+    milvus_host: str = "127.0.0.1"
+    milvus_port: int = 19530
+    milvus_health_port: int = 9091
 
     @field_validator("app_host")
     @classmethod
@@ -82,6 +85,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 "OLLAMA_BASE_URL must point at a local Ollama process "
                 f"(127.0.0.1/localhost), got {self.ollama_base_url!r}."
+            )
+        if self.milvus_host not in {"127.0.0.1", "localhost"}:
+            raise ValueError(
+                f"MILVUS_HOST must be 127.0.0.1 or localhost, got {self.milvus_host!r}."
             )
 
         self.data_dir = data_dir
