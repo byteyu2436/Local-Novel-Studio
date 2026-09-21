@@ -4,6 +4,7 @@ import DiagnosticsPage from "@/pages/DiagnosticsPage";
 import HomePage from "@/pages/HomePage";
 import ImportPreviewPage from "@/pages/ImportPreviewPage";
 import PasteImportPage from "@/pages/PasteImportPage";
+import ReaderPage from "@/pages/ReaderPage";
 import TxtImportPage from "@/pages/TxtImportPage";
 
 export default function App() {
@@ -16,6 +17,11 @@ export default function App() {
         <Route
           path="/imports/:sourceId/preview"
           element={<ImportPreviewPage />}
+        />
+        <Route path="/novels/:novelId" element={<ReaderPage />} />
+        <Route
+          path="/novels/:novelId/chapters/:chapterId"
+          element={<ReaderPage />}
         />
         <Route path="/diagnostics" element={<DiagnosticsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
