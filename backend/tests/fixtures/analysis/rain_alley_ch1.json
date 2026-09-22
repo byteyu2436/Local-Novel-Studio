@@ -1,0 +1,92 @@
+{
+  "fixture_id": "rain-alley-ch1",
+  "chapter_body": "傍晚，林深走进雨巷。巷子又窄又湿。一只鹿停在灯下，回头看他。天色压下来，雨巷入夜后更暗。",
+  "source": {
+    "novel_title": "雨巷",
+    "original_label": "第一章",
+    "original_title": "开场",
+    "version_kind": "ORIGINAL"
+  },
+  "schema_version": "chapter-analysis.v1",
+  "prompt_version": "chapter-analyzer.v1",
+  "required": {
+    "character_names": ["林深"],
+    "location_names": ["雨巷"],
+    "event_keywords": ["鹿"],
+    "relationship_pairs": [["林深", "鹿"]],
+    "timeline_min_entries": 1,
+    "foreshadowing_statuses": ["planted"],
+    "world_fact_keywords": ["雨巷"],
+    "style_pov_tokens": ["第三人称"]
+  },
+  "baseline_payload": {
+    "summary": {
+      "synopsis": "林深在雨巷遇见一只鹿。",
+      "core_events": "相遇",
+      "mood": "静谧"
+    },
+    "characters": [
+      {
+        "name": "林深",
+        "aliases": ["阿深"],
+        "identity": "旅人",
+        "personality": "克制",
+        "goal": "寻路",
+        "secret": "",
+        "current_state": "淋雨",
+        "evidence": "林深走进雨巷。"
+      }
+    ],
+    "locations": [{"name": "雨巷", "aliases": [], "description": "窄巷"}],
+    "events": [
+      {
+        "summary": "林深遇见鹿",
+        "participants": ["林深"],
+        "location": "雨巷",
+        "time_label": "傍晚",
+        "importance": "high",
+        "cause": "",
+        "effect": ""
+      }
+    ],
+    "relationships": [
+      {
+        "source": "林深",
+        "target": "鹿",
+        "relation_type": "初遇",
+        "trust_or_conflict": "",
+        "current_state": "陌生"
+      }
+    ],
+    "timeline": [
+      {
+        "order_key": 0,
+        "summary": "进入雨巷",
+        "explicit_time": null,
+        "relative_time": "开篇",
+        "uncertainty": "approximate"
+      }
+    ],
+    "foreshadowing": [
+      {"clue": "鹿回头", "status": "planted", "evidence": "它停了一下。"}
+    ],
+    "open_questions": [{"question": "鹿从哪里来？", "urgency": "normal"}],
+    "world_facts": [
+      {
+        "fact": "雨巷在入夜后更暗",
+        "category": "location",
+        "inferred": false,
+        "evidence": "天色压下来。"
+      }
+    ],
+    "style_signals": {
+      "pov": "第三人称",
+      "sentence_length": "短句",
+      "dialogue_ratio": "低",
+      "description_bias": "景物",
+      "pacing": "缓",
+      "chapter_length": "短",
+      "transition_style": "直入"
+    }
+  }
+}

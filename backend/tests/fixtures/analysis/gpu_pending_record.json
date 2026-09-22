@@ -1,0 +1,7 @@
+{
+  "issue": "CY-153",
+  "model": "qwen3.5:9b",
+  "status": "verification:gpu-pending",
+  "command": "cd backend; $env:LNS_OLLAMA_SMOKE='1'; python -m app.eval.analysis_golden --live",
+  "note": "Mock/CPU/MPS output must not be registered as Windows GPU acceptance evidence. Record the commit SHA, model digest, and log path on the GPU machine after a real run."
+}
