@@ -251,6 +251,100 @@ class ChapterAnalysis(Base):
     )
 
 
+_JOB_KIND_VALUES = (
+    "IMPORT",
+    "INITIALIZE_NOVEL",
+    "ANALYZE_CHAPTER",
+    "MEMORY_REDUCE",
+    "BATCH_EMBED",
+    "REBUILD_INDEX",
+    "PLAN_CHAPTER",
+    "GENERATE_SCENE",
+    "CHECK_CONSISTENCY",
+    "UPDATE_MEMORY",
+    "BACKUP",
+)
+_JOB_STATE_VALUES = ("queued", "running", "paused", "failed", "completed", "cancelled")
+_UNIT_STATE_VALUES = ("queued", "running", "failed", "completed", "cancelled")
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN (" + ", ".join(f"'{item}'" for item in _JOB_KIND_VALUES) + ")",
+            name="ck_jobs_kind",
+        ),
+        CheckConstraint(
+            "state IN (" + ", ".join(f"'{item}'" for item in _JOB_STATE_VALUES) + ")",
+            name="ck_jobs_state",
+        ),
+        Index("ix_jobs_novel_id", "novel_id"),
+        Index("ix_jobs_state", "state"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    novel_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("novels.id", ondelete="CASCADE"), nullable=True
+    )
+    progress_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    progress_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    checkpoint: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    units: Mapped[list["AnalysisChapterUnit"]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+    )
+
+
+class AnalysisChapterUnit(Base):
+    __tablename__ = "analysis_chapter_units"
+    __table_args__ = (
+        UniqueConstraint("job_id", "chapter_id", name="uq_analysis_unit_job_chapter"),
+        CheckConstraint(
+            "state IN (" + ", ".join(f"'{item}'" for item in _UNIT_STATE_VALUES) + ")",
+            name="ck_analysis_units_state",
+        ),
+        Index("ix_analysis_units_job_id", "job_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    job_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False
+    )
+    chapter_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("chapters.id", ondelete="CASCADE"), nullable=False
+    )
+    source_version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("chapter_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    analyzer_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    analysis_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("chapter_analysis.id", ondelete="SET NULL"), nullable=True
+    )
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    checkpoint: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    job: Mapped[Job] = relationship(back_populates="units")
+
+
 @event.listens_for(ImportSource, "before_update")
 def reject_raw_snapshot_mutation(_mapper, _connection, target: ImportSource) -> None:
     state = inspect(target)

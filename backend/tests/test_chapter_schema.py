@@ -28,7 +28,7 @@ def test_migration_creates_novel_chapter_tables(isolated_data_dir) -> None:
             version = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0006_analysis_prompt_trace"
+        assert version == "0007_jobs"
     finally:
         engine.dispose()
 
@@ -141,7 +141,7 @@ def test_upgrade_from_previous_revision(isolated_data_dir) -> None:
             version = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0006_analysis_prompt_trace"
+        assert version == "0007_jobs"
         assert "chapters" in inspect(engine).get_table_names()
     finally:
         engine.dispose()
