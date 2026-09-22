@@ -1,3 +1,5 @@
+import json
+
 from app.adapters.sqlite.models import Chapter, ChapterVersion
 from app.domain.chapter import VersionKind
 
@@ -11,6 +13,26 @@ class AnalysisError(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+def extract_json_object(text: str) -> object:
+    """Parse a JSON object from model text. Does not validate the analysis schema."""
+
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        raise AnalysisError(
+            "analysis_schema_invalid",
+            "Model output was not valid JSON.",
+        ) from exc
 
 
 def require_supported_schema_version(schema_version: str) -> str:

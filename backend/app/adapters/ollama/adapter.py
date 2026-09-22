@@ -59,10 +59,17 @@ class OllamaAdapter:
     async def list_models(self) -> list[str]:
         return await self._client.list_models()
 
-    async def chat(self, messages: list[ChatMessage], profile: ModelProfile) -> str:
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        profile: ModelProfile,
+        *,
+        response_format: dict | str | None = None,
+    ) -> str:
         return await self._client.chat(
             [message.model_dump() for message in messages],
             profile,
+            response_format=response_format,
         )
 
     async def generate(self, prompt: str, profile: ModelProfile) -> str:

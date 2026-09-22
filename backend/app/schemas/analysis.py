@@ -145,3 +145,9 @@ def parse_stored_analysis_payload(
 
 
 CURRENT_SCHEMA_VERSION = CHAPTER_ANALYSIS_SCHEMA_VERSION
+
+
+def chapter_analysis_json_schema() -> dict:
+    """JSON Schema sent to Ollama Structured Outputs for chapter analysis."""
+
+    return ChapterAnalysisPayload.model_json_schema()

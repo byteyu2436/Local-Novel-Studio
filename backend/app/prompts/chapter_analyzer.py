@@ -30,3 +30,9 @@ foreshadowing, open_questions, world_facts, style_signals。
 - style_signals：只提炼 POV、句长、对白比例、描写倾向、节奏、篇幅、转场，
   不要大段摘抄原文。
 """
+
+CHAPTER_ANALYZER_REPAIR_V1 = """上次输出未通过 Schema 校验。下面只包含校验错误，不含章节正文。
+请只输出修正后的 JSON 对象，不要解释，不要补写未出现事实。
+
+{error}
+"""

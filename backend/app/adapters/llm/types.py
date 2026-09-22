@@ -62,7 +62,13 @@ class LLMProvider(Protocol):
 
     async def list_models(self) -> list[str]: ...
 
-    async def chat(self, messages: list[ChatMessage], profile: ModelProfile) -> str: ...
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        profile: ModelProfile,
+        *,
+        response_format: dict | str | None = None,
+    ) -> str: ...
 
     async def generate(self, prompt: str, profile: ModelProfile) -> str: ...
 

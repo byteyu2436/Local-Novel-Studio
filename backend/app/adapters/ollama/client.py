@@ -71,8 +71,16 @@ class OllamaClient:
                 names.append(str(name))
         return names
 
-    async def chat(self, messages: list[dict[str, str]], profile: ModelProfile) -> str:
-        payload = self._chat_payload(messages, profile, stream=False)
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        profile: ModelProfile,
+        *,
+        response_format: dict | str | None = None,
+    ) -> str:
+        payload = self._chat_payload(
+            messages, profile, stream=False, response_format=response_format
+        )
         response = await self._request("POST", "/api/chat", json=payload)
         return str(response.json().get("message", {}).get("content", ""))
 
@@ -113,7 +121,12 @@ class OllamaClient:
             raise LLMUnavailableError() from exc
 
     def _chat_payload(
-        self, messages: list[dict[str, str]], profile: ModelProfile, *, stream: bool
+        self,
+        messages: list[dict[str, str]],
+        profile: ModelProfile,
+        *,
+        stream: bool,
+        response_format: dict | str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": profile.model_ref,
@@ -121,6 +134,8 @@ class OllamaClient:
             "stream": stream,
             **self._options(profile),
         }
+        if response_format is not None:
+            payload["format"] = response_format
         return payload
 
     def _options(self, profile: ModelProfile) -> dict[str, Any]:

@@ -32,12 +32,15 @@ class FakeLLMProvider:
         models: list[str] | None = None,
         response: str = "ok",
         chunks: list[str] | None = None,
+        responses: list[str] | None = None,
     ) -> None:
         self.mode = mode
         self.models = models or ["qwen3.5:9b"]
         self.response = response
         self.chunks = ["ok"] if chunks is None else chunks
         self.calls: list[str] = []
+        self.response_formats: list[dict | str | None] = []
+        self._responses = None if responses is None else list(responses)
 
     async def health(self) -> RuntimeHealth:
         reachable = self.mode != "unavailable"
@@ -57,9 +60,20 @@ class FakeLLMProvider:
         self._raise_if_needed()
         return list(self.models)
 
-    async def chat(self, messages: list[ChatMessage], profile: ModelProfile) -> str:
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        profile: ModelProfile,
+        *,
+        response_format: dict | str | None = None,
+    ) -> str:
         self.calls.append("chat")
+        self.response_formats.append(response_format)
         self._raise_if_needed(profile)
+        if self._responses is not None:
+            if not self._responses:
+                raise LLMInvalidOutputError("No queued structured response.")
+            return self._responses.pop(0)
         return self.response
 
     async def generate(self, prompt: str, profile: ModelProfile) -> str:
