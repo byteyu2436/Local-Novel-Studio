@@ -129,6 +129,6 @@ def test_migration_creates_job_tables(isolated_data_dir) -> None:
             version = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0007_jobs"
+        assert version == "0018_continuation"
     finally:
         engine.dispose()

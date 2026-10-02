@@ -211,7 +211,11 @@ def run_cli(argv: list[str] | None = None) -> int:
         if live_failures:
             print(format_failures(live_failures), file=sys.stderr)
             return 1
-        print("live contract ok (CPU/local smoke, not WINDOWS_GPU evidence)")
+        profile = get_settings().lns_execution_profile.value
+        if profile == "windows-gpu":
+            print("live contract ok (WINDOWS_GPU)")
+        else:
+            print("live contract ok (CPU/local smoke, not WINDOWS_GPU evidence)")
         return 0
 
     return asyncio.run(_run())

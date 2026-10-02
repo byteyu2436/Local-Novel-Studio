@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     sqlite_echo: bool = Field(default=False)
     ollama_base_url: str = "http://127.0.0.1:11434"
     writer_model: str = "qwen3.5:9b"
+    embedding_model: str = "qwen3-embedding:0.6b"
     ollama_timeout_seconds: float = Field(default=120.0, gt=0)
     milvus_host: str = "127.0.0.1"
     milvus_port: int = 19530
@@ -79,6 +80,11 @@ class Settings(BaseSettings):
 
         if ":" not in self.writer_model:
             raise ValueError("WRITER_MODEL must include an explicit tag, for example 'qwen3.5:9b'.")
+        if ":" not in self.embedding_model:
+            raise ValueError(
+                "EMBEDDING_MODEL must include an explicit tag, "
+                "for example 'qwen3-embedding:0.6b'."
+            )
 
         origin = urlparse(self.ollama_base_url)
         if origin.hostname not in {"127.0.0.1", "localhost"}:

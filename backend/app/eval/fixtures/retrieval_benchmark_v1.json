@@ -1,0 +1,61 @@
+{
+  "version": "retrieval-benchmark.v1",
+  "novel_fixture_id": "rain-lane-sample",
+  "chapters": [
+    {"sequence": 1, "title": "城南", "body": "林深住在城南。"},
+    {"sequence": 2, "title": "师徒", "body": "林深与周晚是师徒。"},
+    {"sequence": 3, "title": "遗失", "body": "旧伞在雨夜遗失。"},
+    {"sequence": 4, "title": "雨巷", "body": "故事发生在雨巷。"},
+    {"sequence": 5, "title": "刻名", "body": "伞柄刻着无人识的名字。"},
+    {"sequence": 6, "title": "十年", "body": "那是十年前的春天。"}
+  ],
+  "queries": [
+    {
+      "query_id": "character-lin",
+      "category": "character",
+      "goal": "林深住在哪里",
+      "characters": ["林深"],
+      "expected_chapters": [1],
+      "gold": [{"chapter_sequence": 1, "start_offset": 0, "end_offset": 6, "excerpt": "林深住在城南"}]
+    },
+    {
+      "query_id": "relationship-mentor",
+      "category": "relationship",
+      "goal": "林深和周晚是什么关系",
+      "characters": ["林深", "周晚"],
+      "expected_chapters": [2],
+      "gold": [{"chapter_sequence": 2, "start_offset": 0, "end_offset": 8, "excerpt": "林深与周晚是师徒"}]
+    },
+    {
+      "query_id": "event-umbrella",
+      "category": "event",
+      "goal": "旧伞发生了什么",
+      "events": ["旧伞在雨夜遗失"],
+      "expected_chapters": [3],
+      "gold": [{"chapter_sequence": 3, "start_offset": 0, "end_offset": 7, "excerpt": "旧伞在雨夜遗失"}]
+    },
+    {
+      "query_id": "location-lane",
+      "category": "location",
+      "goal": "故事发生在什么地方",
+      "locations": ["雨巷"],
+      "expected_chapters": [4],
+      "gold": [{"chapter_sequence": 4, "start_offset": 5, "end_offset": 7, "excerpt": "雨巷"}]
+    },
+    {
+      "query_id": "foreshadow-name",
+      "category": "foreshadowing",
+      "goal": "伞柄上的线索",
+      "foreshadowing": ["无人识的名字"],
+      "expected_chapters": [5],
+      "gold": [{"chapter_sequence": 5, "start_offset": 2, "end_offset": 8, "excerpt": "刻着无人识的"}]
+    },
+    {
+      "query_id": "timeline-spring",
+      "category": "timeline",
+      "goal": "事情发生在什么时候",
+      "expected_chapters": [6],
+      "gold": [{"chapter_sequence": 6, "start_offset": 2, "end_offset": 8, "excerpt": "十年前的春天"}]
+    }
+  ]
+}

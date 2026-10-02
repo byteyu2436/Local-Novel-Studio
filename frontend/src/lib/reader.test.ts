@@ -39,6 +39,7 @@ describe("reader shell", () => {
     expect(resolveActiveChapter(parsed, "missing")?.chapter_id).toBe("c1");
     expect(parsed.chapters).toHaveLength(18);
     expect(tocItemLabel(parsed.chapters[4])).toBe("第5章");
+    expect(tocItemLabel({ sequence: 5, display_title: "旧伞" })).toBe("第5章 旧伞");
   });
 
   it("surfaces a clear error when the TOC API fails", async () => {

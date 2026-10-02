@@ -84,6 +84,23 @@ class OllamaClient:
         response = await self._request("POST", "/api/chat", json=payload)
         return str(response.json().get("message", {}).get("content", ""))
 
+    async def embed(self, model: str, texts: list[str]) -> list[list[float]]:
+        response = await self._request(
+            "POST",
+            "/api/embed",
+            json={"model": model, "input": texts},
+        )
+        payload = response.json()
+        rows = payload.get("embeddings")
+        if not isinstance(rows, list):
+            raise LLMUnavailableError("Ollama embed response did not include embeddings.")
+        vectors: list[list[float]] = []
+        for row in rows:
+            if not isinstance(row, list):
+                raise LLMUnavailableError("Ollama embed response contained a non-vector.")
+            vectors.append([float(value) for value in row])
+        return vectors
+
     async def generate(self, prompt: str, profile: ModelProfile) -> str:
         payload = {
             "model": profile.model_ref,

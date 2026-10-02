@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.adapters.sqlite import bootstrap_local_runtime
+from app.adapters.sqlite import bootstrap_local_runtime, session_scope
 from app.api.router import api_router
+from app.services.analysis_recovery import recover_analysis_jobs
 from app.settings import get_settings
 
 
@@ -15,6 +16,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     application.state.settings = settings
     application.state.engine = engine
     application.state.session_factory = session_factory
+    for session in session_scope(session_factory):
+        recover_analysis_jobs(session)
     yield
     engine.dispose()
 

@@ -1,5 +1,32 @@
 from alembic import context
 from app.adapters.sqlite.base import Base
+from app.adapters.sqlite.chunks import CanonChunk
+from app.adapters.sqlite.continuation import (
+    AcceptOperation,
+    ChapterPlanVersion,
+    ConsistencyIssueRecord,
+    DraftVersion,
+)
+from app.adapters.sqlite.embeddings import ChunkEmbedding, EmbeddingProfileRecord
+from app.adapters.sqlite.index_registry import IndexVersionRecord
+from app.adapters.sqlite.initialization import NovelInitializationRun
+from app.adapters.sqlite.memory import (
+    EntityResolutionRecord,
+    MemoryCharacter,
+    MemoryConflict,
+    MemoryEvent,
+    MemoryFact,
+    MemoryForeshadowing,
+    MemoryNamedEntity,
+    MemoryOperationLog,
+    MemoryReduceApplication,
+    MemoryRelationship,
+    MemorySnapshot,
+    MemoryStyleProfile,
+    MemoryTimeline,
+    MemoryWorldFact,
+    NovelMemoryRevision,
+)
 from app.adapters.sqlite.models import (
     AppSetting,
     ChapterAnalysis,
@@ -12,7 +39,37 @@ config = context.config
 target_metadata = Base.metadata
 
 # Imported so Alembic autogenerate can see the current models.
-_ = (AppSetting, ChapterAnalysis, ImportSource, ImportSourceNormalizedText)
+_ = (
+    AppSetting,
+    CanonChunk,
+    ChunkEmbedding,
+    ChapterAnalysis,
+    EmbeddingProfileRecord,
+    IndexVersionRecord,
+    NovelInitializationRun,
+    AcceptOperation,
+    ChapterPlanVersion,
+    ConsistencyIssueRecord,
+    DraftVersion,
+    ImportSource,
+    ImportSourceNormalizedText,
+    MemoryCharacter,
+    MemoryEvent,
+    MemoryFact,
+    MemoryForeshadowing,
+    MemoryRelationship,
+    MemoryStyleProfile,
+    MemoryTimeline,
+    EntityResolutionRecord,
+    MemoryConflict,
+    MemoryNamedEntity,
+    MemoryOperationLog,
+    MemoryReduceApplication,
+    MemoryRelationship,
+    MemorySnapshot,
+    MemoryWorldFact,
+    NovelMemoryRevision,
+)
 
 
 def run_migrations_offline() -> None:

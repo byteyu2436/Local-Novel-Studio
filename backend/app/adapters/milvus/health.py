@@ -5,7 +5,7 @@ from app.settings import Settings
 
 
 class MilvusHealthAdapter:
-    """Health-only adapter. Collection schema and embeddings come later."""
+    """Health check for the local Milvus process. Canon stays in SQLite."""
 
     def __init__(self, settings: Settings, *, client: httpx.AsyncClient | None = None) -> None:
         self._settings = settings

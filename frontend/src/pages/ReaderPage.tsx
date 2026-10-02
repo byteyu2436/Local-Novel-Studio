@@ -13,6 +13,7 @@ import {
   type ReaderChapter,
   type ReaderToc,
 } from "@/lib/reader";
+import { memoryPath } from "@/lib/memoryCenter";
 import {
   DEFAULT_READER_SETTINGS,
   readerArticleStyle,
@@ -86,16 +87,19 @@ export default function ReaderPage() {
   }, [active?.chapter_id, versionId]);
 
   if (!loading && toc && active && active.chapter_id !== chapterId) {
-    return <Navigate to={readerPath(toc.novel_id, active.chapter_id)} replace />;
+    return (
+      <Navigate to={readerPath(toc.novel_id, active.chapter_id)} replace />
+    );
   }
 
   const previewing = Boolean(chapter && !chapter.is_canon);
   const articleStyle = readerArticleStyle(settings);
 
-  function updateSetting<K extends keyof ReaderSettings>(key: K, value: number) {
-    setSettings((current) =>
-      writeReaderSettings({ ...current, [key]: value }),
-    );
+  function updateSetting<K extends keyof ReaderSettings>(
+    key: K,
+    value: number,
+  ) {
+    setSettings((current) => writeReaderSettings({ ...current, [key]: value }));
   }
 
   return (
@@ -118,13 +122,21 @@ export default function ReaderPage() {
           >
             {tocOpen ? "收起目录" : "展开目录"}
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to={memoryPath(novelId)}>记忆中心</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/novels/${novelId}/initialize`}>准备续写</Link>
+          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link to="/">返回首页</Link>
           </Button>
         </div>
       </div>
 
-      {loading ? <p className="text-sm text-muted-foreground">正在加载章节目录…</p> : null}
+      {loading ? (
+        <p className="text-sm text-muted-foreground">正在加载章节目录…</p>
+      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <section className="flex flex-wrap items-end gap-4 rounded-md border border-input px-3 py-3 text-sm">
@@ -135,7 +147,9 @@ export default function ReaderPage() {
             min={14}
             max={28}
             value={settings.fontSize}
-            onChange={(event) => updateSetting("fontSize", Number(event.target.value))}
+            onChange={(event) =>
+              updateSetting("fontSize", Number(event.target.value))
+            }
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -202,7 +216,9 @@ export default function ReaderPage() {
             {active && chapter && chapter.chapter_id === active.chapter_id ? (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-xl font-semibold">{tocItemLabel(chapter)}</h2>
+                  <h2 className="text-xl font-semibold">
+                    {tocItemLabel(chapter)}
+                  </h2>
                   <span
                     className={`rounded-md px-2 py-1 text-xs font-medium ${
                       previewing
@@ -233,7 +249,12 @@ export default function ReaderPage() {
                 <div className="mt-6 flex flex-wrap gap-3">
                   {chapter.previous ? (
                     <Button asChild variant="outline">
-                      <Link to={readerPath(toc.novel_id, chapter.previous.chapter_id)}>
+                      <Link
+                        to={readerPath(
+                          toc.novel_id,
+                          chapter.previous.chapter_id,
+                        )}
+                      >
                         上一章
                       </Link>
                     </Button>
@@ -244,7 +265,9 @@ export default function ReaderPage() {
                   )}
                   {chapter.next ? (
                     <Button asChild>
-                      <Link to={readerPath(toc.novel_id, chapter.next.chapter_id)}>
+                      <Link
+                        to={readerPath(toc.novel_id, chapter.next.chapter_id)}
+                      >
                         下一章
                       </Link>
                     </Button>
@@ -256,7 +279,9 @@ export default function ReaderPage() {
             ) : active ? (
               <p className="text-sm text-muted-foreground">正在加载正文…</p>
             ) : (
-              <p className="text-sm text-muted-foreground">这本小说还没有章节。</p>
+              <p className="text-sm text-muted-foreground">
+                这本小说还没有章节。
+              </p>
             )}
           </section>
         </div>

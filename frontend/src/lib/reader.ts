@@ -32,9 +32,11 @@ export function readingChapterPath(novelId: string, chapterId: string): string {
 export function tocItemLabel(
   item: Pick<ReaderTocItem, "sequence" | "display_title">,
 ): string {
-  const title = item.display_title.trim() || `第${item.sequence}章`;
-  if (title.startsWith(`第${item.sequence}章`)) return title;
-  return `${item.sequence}. ${title}`;
+  const title = item.display_title.trim();
+  const prefix = `第${item.sequence}章`;
+  if (!title || title === prefix) return prefix;
+  if (title.startsWith(prefix)) return title;
+  return `${prefix} ${title}`;
 }
 
 export function resolveActiveChapter(

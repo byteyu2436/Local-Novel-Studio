@@ -131,9 +131,17 @@ def add_analysis_unit(
         created_at=now,
         updated_at=now,
     )
+    unit.job = job
     session.add(unit)
     job.progress_total = int(job.progress_total) + 1
     job.updated_at = now
+    session.flush()
+    return unit
+
+
+def start_analysis_unit(session: Session, unit: AnalysisChapterUnit) -> AnalysisChapterUnit:
+    unit.state = UnitState.RUNNING.value
+    unit.updated_at = _now()
     session.flush()
     return unit
 
@@ -145,9 +153,50 @@ def complete_analysis_unit(
     unit.state = UnitState.COMPLETED.value
     unit.analysis_id = analysis_id
     unit.checkpoint = checkpoint
+    unit.error_code = None
+    unit.error_message = None
     unit.updated_at = _now()
     job.progress_done = int(job.progress_done) + 1
     job.updated_at = unit.updated_at
+    session.flush()
+    return unit
+
+
+def cancel_analysis_unit(session: Session, unit: AnalysisChapterUnit) -> AnalysisChapterUnit:
+    if unit.state not in {UnitState.QUEUED.value, UnitState.RUNNING.value}:
+        return unit
+    unit.state = UnitState.CANCELLED.value
+    unit.updated_at = _now()
+    session.flush()
+    return unit
+
+
+def requeue_interrupted_analysis_unit(
+    session: Session, unit: AnalysisChapterUnit
+) -> AnalysisChapterUnit:
+    if unit.state != UnitState.RUNNING.value:
+        return unit
+    checkpoint = dict(unit.checkpoint or {})
+    checkpoint["recovered_from"] = "running"
+    unit.checkpoint = checkpoint
+    unit.state = UnitState.QUEUED.value
+    unit.updated_at = _now()
+    session.flush()
+    return unit
+
+
+def requeue_failed_analysis_unit(
+    session: Session, unit: AnalysisChapterUnit
+) -> AnalysisChapterUnit:
+    if unit.state != UnitState.FAILED.value:
+        raise JobError("analysis_unit_not_failed", "Only a failed chapter can be retried.")
+    checkpoint = dict(unit.checkpoint or {})
+    if unit.error_code:
+        checkpoint["last_error_code"] = unit.error_code
+        checkpoint["last_error_message"] = unit.error_message
+    unit.checkpoint = checkpoint
+    unit.state = UnitState.QUEUED.value
+    unit.updated_at = _now()
     session.flush()
     return unit
 

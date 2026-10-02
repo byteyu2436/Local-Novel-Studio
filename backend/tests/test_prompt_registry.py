@@ -36,8 +36,11 @@ def test_missing_prompt_version_and_reserved_kind_are_rejected() -> None:
         current_prompt(PromptKind.MEMORY_MERGE)
     assert reserved.value.code == "prompt_kind_not_registered"
     with pytest.raises(AnalysisError) as unregistered:
-        get_prompt(PromptKind.TITLE_GENERATOR, "title.v1")
-    assert unregistered.value.code == "prompt_kind_not_registered"
+        get_prompt(PromptKind.TITLE_GENERATOR, "title.v9")
+    assert unregistered.value.code == "prompt_version_not_found"
+    title_prompt = current_prompt(PromptKind.TITLE_GENERATOR)
+    assert "不得剧透" in title_prompt.text
+    assert "后续章节" in title_prompt.text
 
 
 def test_default_analyzer_profile_is_low_temperature() -> None:

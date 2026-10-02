@@ -19,6 +19,36 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.adapters.sqlite.base import Base
+from app.adapters.sqlite.chunks import CanonChunk  # noqa: F401
+from app.adapters.sqlite.continuation import (  # noqa: F401
+    AcceptOperation,
+    ChapterPlanVersion,
+    ConsistencyIssueRecord,
+    DraftVersion,
+)
+from app.adapters.sqlite.embeddings import (  # noqa: F401
+    ChunkEmbedding,
+    EmbeddingProfileRecord,
+)
+from app.adapters.sqlite.index_registry import IndexVersionRecord  # noqa: F401
+from app.adapters.sqlite.initialization import NovelInitializationRun  # noqa: F401
+from app.adapters.sqlite.memory import (  # noqa: F401
+    EntityResolutionRecord,
+    MemoryCharacter,
+    MemoryConflict,
+    MemoryEvent,
+    MemoryFact,
+    MemoryForeshadowing,
+    MemoryNamedEntity,
+    MemoryOperationLog,
+    MemoryReduceApplication,
+    MemoryRelationship,
+    MemorySnapshot,
+    MemoryStyleProfile,
+    MemoryTimeline,
+    MemoryWorldFact,
+    NovelMemoryRevision,
+)
 from app.domain.importing import ImportSourceImmutableError, ParseStatus, SourceType
 
 _IMMUTABLE_IMPORT_COLUMNS = (
@@ -112,6 +142,7 @@ class Novel(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
+    auto_title_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -143,6 +174,7 @@ class Chapter(Base):
     display_title: Mapped[str] = mapped_column(String(512), nullable=False)
     title_source: Mapped[str] = mapped_column(String(16), nullable=False)
     title_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    title_candidates: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     current_canon_version_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("chapter_versions.id", ondelete="SET NULL", use_alter=True),
